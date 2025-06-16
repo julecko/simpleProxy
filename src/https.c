@@ -6,17 +6,20 @@
 #include <unistd.h>
 #include <string.h>
 
-void handle_https_tunnel(int client_socket, char *target_host, int target_port) {
+void handle_https_tunnel(int client_socket, char *target_host, int target_port)
+{
     printf("Establishing HTTPS tunnel to %s:%d\n", target_host, target_port);
 
     int target_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (target_socket < 0) {
+    if (target_socket < 0)
+    {
         perror("socket");
         return;
     }
 
     struct hostent *he = gethostbyname(target_host);
-    if (!he) {
+    if (!he)
+    {
         fprintf(stderr, "Could not resolve host: %s\n", target_host);
         close(target_socket);
         return;
@@ -27,11 +30,11 @@ void handle_https_tunnel(int client_socket, char *target_host, int target_port) 
     server_addr.sin_port = htons(target_port);
     memcpy(&server_addr.sin_addr, he->h_addr_list[0], he->h_length);
 
-    if (connect(target_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    if (connect(target_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0){
         perror("connect to target failed");
         close(target_socket);
         return;
-    } 
+    }
 
     const char *response = "HTTP/1.1 200 Connection Established\r\n\r\n";
     send(client_socket, response, strlen(response), 0);
@@ -40,25 +43,38 @@ void handle_https_tunnel(int client_socket, char *target_host, int target_port) 
     char buffer[4096];
     int max_fd = (client_socket > target_socket ? client_socket : target_socket) + 1;
 
-    while (1) {
+    struct timeval timeout;
+    timeout.tv_sec = 10;
+    timeout.tv_usec = 0;
+
+    while (1)
+    {
         FD_ZERO(&fds);
         FD_SET(client_socket, &fds);
         FD_SET(target_socket, &fds);
 
-        if (select(max_fd, &fds, NULL, NULL, NULL) < 0) break;
+        int activity = select(max_fd, &fds, NULL, NULL, &timeout);
 
-        if (FD_ISSET(client_socket, &fds)) {
+        if (activity < 0){
+            perror("select");
+            break;
+        }else if (activity == 0){
+            printf("Timeout, closing tunnel\n");
+            break;
+        }
+
+        if (FD_ISSET(client_socket, &fds)){
             ssize_t n = recv(client_socket, buffer, sizeof(buffer), 0);
-            if (n <= 0) break;
+            if (n <= 0)break;
             send(target_socket, buffer, n, 0);
         }
 
-        if (FD_ISSET(target_socket, &fds)) {
+        if (FD_ISSET(target_socket, &fds)){
             ssize_t n = recv(target_socket, buffer, sizeof(buffer), 0);
             if (n <= 0) break;
             send(client_socket, buffer, n, 0);
         }
     }
-
+    printf("Request closed\n");
     close(target_socket);
 }
