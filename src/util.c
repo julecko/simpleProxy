@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 int parse_host_port(const char *request, char *host, int *port) {
     const char *host_header = strstr(request, "\nHost:");

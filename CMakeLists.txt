@@ -5,6 +5,8 @@ add_executable(simpleProxy
     src/main.c
     src/proxy.c
     src/util.c
+    src/http.c
+    src/https.c
 )
 
 target_include_directories(simpleProxy PUBLIC ${PROJECT_SOURCE_DIR}/include)
