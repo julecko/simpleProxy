@@ -19,3 +19,7 @@ CMakeUserPresets.json
 # Swap
 *~
 *.swp
+
+# Testing
+test.c
+test

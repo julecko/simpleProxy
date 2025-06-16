@@ -1,3 +1,4 @@
+#include "util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +49,7 @@ void handle_client(int client_socket) {
     while ((valread = read(client_socket, buffer, sizeof(buffer) - 1)) > 0) {
         buffer[valread] = '\0';
         printf("Received: %s\n", buffer);
+        printf("URL: %s\n", parse_address(buffer));
 
         send(client_socket, buffer, strlen(buffer), 0);
     }
