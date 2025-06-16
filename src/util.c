@@ -1,37 +1,35 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <regex.h>
-#include <string.h>
 
-
-char* parse_address(const char* request) {
-    regex_t regex;
-    regmatch_t matches[3];
-
-    const char* pattern = "^(\\w+)\\s+([^ ]+)";
-
-    if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
-        printf("Failed to compile regex.\n");
-        return NULL;
+int parse_host_port(const char *request, char *host, int *port) {
+    const char *host_header = strstr(request, "\nHost:");
+    if (!host_header)
+        host_header = strstr(request, "\nhost:");
+    if (!host_header) {
+        fprintf(stderr, "No Host header found\n");
+        return -1;
     }
 
-    int reti = regexec(&regex, request, 3, matches, 0);
-    regfree(&regex);
+    host_header += 6;
+    while (*host_header == ' ' || *host_header == '\t') host_header++;
 
-    if (reti != 0) {
-        printf("No match found.\n");
-        return NULL;
+    const char *end = strchr(host_header, '\r');
+    if (!end) end = strchr(host_header, '\n');
+    if (!end) end = host_header + strlen(host_header);
+
+    size_t len = end - host_header;
+    char host_port[256];
+    if (len >= sizeof(host_port)) len = sizeof(host_port) - 1;
+    strncpy(host_port, host_header, len);
+    host_port[len] = 0;
+
+    char *colon = strchr(host_port, ':');
+    if (colon) {
+        *colon = 0;
+        *port = atoi(colon + 1);
+    } else {
+        *port = 80;
     }
 
-    size_t length = matches[2].rm_eo - matches[2].rm_so;
-
-    char* address = (char*)malloc(length + 1);
-    if (!address){
-        printf("Allocation for address failed\n");
-        return NULL;
-    }
-    strncpy(address, request + matches[2].rm_so, length);
-    address[length] = '\0';
-
-    return address;
+    strcpy(host, host_port);
+    return 0;
 }

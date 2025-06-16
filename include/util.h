@@ -1,6 +1,6 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-char* parse_address(const char* request);
+int parse_host_port(const char *request, char *host, int *port);
 
 #endif
