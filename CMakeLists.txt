@@ -11,3 +11,6 @@ add_executable(simpleProxy
 )
 
 target_include_directories(simpleProxy PUBLIC ${PROJECT_SOURCE_DIR}/include)
+
+find_package(Threads REQUIRED)
+target_link_libraries(simpleProxy PRIVATE Threads::Threads)
