@@ -1,6 +1,7 @@
 #include "util.h"
 #include "http.h"
 #include "https.h"
+#include "auth.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,6 +86,14 @@ void handle_client(int client_socket) {
         close(client_socket);
         return;
     }
+
+    if (!has_valid_auth(request)) {
+        printf("Authentication failed or missing\n");
+        send_proxy_auth_required(client_socket);
+        free(request);
+        close(client_socket);
+        return;
+    }
     // Extendable by parsing Content-Length and reading the body.
 
     char host[256];
@@ -99,6 +108,7 @@ void handle_client(int client_socket) {
 
     if (strncmp(request, "CONNECT ", 8) == 0){
         handle_https_tunnel(client_socket, host, port);
+        printf("Request: %s\n", request);
     }else{
         forward_request(client_socket, host, port, request, request_len);
     }
