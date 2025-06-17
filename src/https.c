@@ -44,8 +44,6 @@ void handle_https_tunnel(int client_socket, char *target_host, int target_port)
     int max_fd = (client_socket > target_socket ? client_socket : target_socket) + 1;
 
     struct timeval timeout;
-    timeout.tv_sec = 10;
-    timeout.tv_usec = 0;
 
     while (1)
     {
@@ -53,6 +51,8 @@ void handle_https_tunnel(int client_socket, char *target_host, int target_port)
         FD_SET(client_socket, &fds);
         FD_SET(target_socket, &fds);
 
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
         int activity = select(max_fd, &fds, NULL, NULL, &timeout);
 
         if (activity < 0){
