@@ -106,9 +106,8 @@ void handle_client(int client_socket) {
     }
     printf("Forwarding request to host=%s port=%d\n", host, port);
 
-    if (strncmp(request, "CONNECT ", 8) == 0){
+    if (strncmp(request, "CONNECT ", 8) == 0) {
         handle_https_tunnel(client_socket, host, port);
-        printf("Request: %s\n", request);
     }else{
         forward_request(client_socket, host, port, request, request_len);
     }
