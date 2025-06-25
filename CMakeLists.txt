@@ -8,6 +8,7 @@ add_executable(simpleProxy
     src/http.c
     src/https.c
     src/auth.c
+    src/collections/hashset.c
 )
 
 target_include_directories(simpleProxy PUBLIC ${PROJECT_SOURCE_DIR}/include)

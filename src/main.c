@@ -23,12 +23,7 @@ void *client_thread(void *arg) {
     return NULL;
 }
 
-int main() {
-    int server_sock = create_server_socket(8080, 5);
-    if (server_sock < 0) return 1;
-
-    printf("Proxy server running on port 8080...\n");
-
+void run_loop(int server_sock){
     while (1) {
         pthread_mutex_lock(&count_mutex);
         int current_active = active_threads;
@@ -64,6 +59,16 @@ int main() {
         active_threads++;
         pthread_mutex_unlock(&count_mutex);
     }
+}
+
+int main() {
+    int server_sock = create_server_socket(8080, 5);
+
+    if (server_sock < 0) return 1;
+
+    printf("Proxy server running on port 8080...\n");
+
+    run_loop(server_sock);
 
     close(server_sock);
     return 0;
