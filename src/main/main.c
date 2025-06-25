@@ -1,13 +1,43 @@
+#define _POSIX_C_SOURCE 200809L
 #include "./proxy.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
+#include <string.h>
 #include <pthread.h>
 
 #define MAX_CONNECTIONS 20
 
+int server_sock = -1;
 int active_threads = 0;
 pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void cleanup(int signum){
+    write(STDOUT_FILENO, "\nCleaning up and exiting...\n", 28);
+    write(STDOUT_FILENO, "Closing socket\n", 15);
+    if (server_sock != -1){
+        close(server_sock);
+    }
+    _exit(EXIT_SUCCESS);
+}
+
+
+void register_signal_handler(void (*handler)(int)) {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = handler;
+    sa.sa_flags = 0;
+
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        perror("sigaction SIGINT");
+    }
+
+    if (sigaction(SIGTERM, &sa, NULL) == -1) {
+        perror("sigaction SIGTERM");
+    }
+}
+
 
 void *client_thread(void *arg) {
     int client_sock = *(int*)arg;
@@ -62,7 +92,9 @@ void run_loop(int server_sock){
 }
 
 int main() {
-    int server_sock = create_server_socket(8080, 5);
+    register_signal_handler(cleanup);
+
+    server_sock = create_server_socket(8080, 5);
 
     if (server_sock < 0) return 1;
 
