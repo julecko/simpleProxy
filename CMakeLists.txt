@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
 project(simpleProxy C)
 
+# Set default to Release if not specified
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 # Detect MySQL client flags via mysql_config
@@ -26,12 +33,21 @@ add_library(simpleProxyCore STATIC
 find_package(Threads REQUIRED)
 target_link_libraries(simpleProxyCore PUBLIC Threads::Threads)
 
-# Apply MySQL flags to the core (if used inside the core)
+# Apply MySQL flags to the core
 target_compile_options(simpleProxyCore PRIVATE ${MYSQL_CFLAGS})
 target_link_libraries(simpleProxyCore PRIVATE ${MYSQL_LIBS})
 
-# Expose posix
-add_compile_definitions(_POSIX_C_SOURCE=200809L)
+# Define _POSIX_C_SOURCE
+target_compile_definitions(simpleProxyCore PRIVATE _POSIX_C_SOURCE=200809L)
+
+# Add Debug/Release flags
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(simpleProxyCore PRIVATE DEBUG_MODE=1)
+    target_compile_options(simpleProxyCore PRIVATE -g -O0)
+else()
+    target_compile_definitions(simpleProxyCore PRIVATE NDEBUG)
+    target_compile_options(simpleProxyCore PRIVATE -O3)
+endif()
 
 # Executable 1: simpleProxy
 add_executable(simpleProxy src/main/main.c)

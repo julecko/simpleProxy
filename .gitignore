@@ -1,3 +1,6 @@
+# Enviromental variables
+.env
+
 # Editors
 .vscode/
 
