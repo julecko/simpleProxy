@@ -1,17 +1,25 @@
 cmake_minimum_required(VERSION 3.10)
 project(simpleProxy C)
 
-add_executable(simpleProxy
-    src/main.c
-    src/proxy.c
-    src/util.c
-    src/http.c
-    src/https.c
-    src/auth.c
-    src/collections/hashset.c
+include_directories(${PROJECT_SOURCE_DIR}/include)
+
+# Core library
+add_library(simpleProxyCore STATIC
+    src/core/proxy.c
+    src/core/util.c
+    src/core/http.c
+    src/core/https.c
+    src/core/auth.c
+    src/core/collections/hashset.c
 )
 
-target_include_directories(simpleProxy PUBLIC ${PROJECT_SOURCE_DIR}/include)
-
 find_package(Threads REQUIRED)
-target_link_libraries(simpleProxy PRIVATE Threads::Threads)
+target_link_libraries(simpleProxyCore PUBLIC Threads::Threads)
+
+# Executable 1: simpleProxy
+add_executable(simpleProxy src/main/main.c)
+target_link_libraries(simpleProxy PRIVATE simpleProxyCore)
+
+# Executable 2: simpleProxyConfig
+add_executable(simpleProxyConfig src/proxy_config/proxy_config.c)
+target_link_libraries(simpleProxyConfig PRIVATE simpleProxyCore)

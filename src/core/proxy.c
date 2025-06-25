@@ -1,7 +1,7 @@
-#include "util.h"
-#include "http.h"
-#include "https.h"
-#include "auth.h"
+#include "./util.h"
+#include "./http.h"
+#include "./https.h"
+#include "./auth.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

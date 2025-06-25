@@ -1,4 +1,4 @@
-#include "proxy.h"
+#include "./proxy.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
