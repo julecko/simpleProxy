@@ -29,6 +29,9 @@ add_library(simpleProxyCore SHARED
     src/core/https.c
     src/core/auth.c
     src/core/collections/hashset.c
+    src/core/db/db.c
+    src/core/db/migration.c
+    src/core/db/user.c
 )
 
 # Threads

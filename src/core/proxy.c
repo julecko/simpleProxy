@@ -44,7 +44,7 @@ int accept_connection(int server_sock) {
     return accept(server_sock, (struct sockaddr*)&client_addr, &addr_len);
 }
 
-int read_request(int sock, char **headers_out, size_t *len_out) {
+static int read_request(int sock, char **headers_out, size_t *len_out) {
     size_t capacity = 4096;
     size_t len = 0;
     char *buffer = malloc(capacity);
