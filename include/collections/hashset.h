@@ -9,11 +9,7 @@ typedef struct Node {
     struct Node *next;
 } Node;
 
-typedef struct {
-    Node **buckets;
-    size_t capacity;
-    size_t size;
-} HashSet;
+typedef struct HashSet HashSet;
 
 HashSet *hashset_create();
 void hashset_free(HashSet *set);

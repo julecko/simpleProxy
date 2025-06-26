@@ -7,6 +7,13 @@
 #define INITIAL_CAPACITY 8
 #define LOAD_FACTOR 0.75
 
+
+struct HashSet {
+    Node **buckets;
+    size_t capacity;
+    size_t size;
+};
+
 void *safe_malloc(size_t size) {
     void *ptr = malloc(size);
     if (!ptr) {
