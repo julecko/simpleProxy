@@ -3,10 +3,14 @@
 set -e
 
 BUILD_TYPE="Debug"
+RUN_EXEC=false
 
-if [[ "$1" == "--release" ]]; then
-  BUILD_TYPE="Release"
-fi
+for arg in "$@"; do
+  case "$arg" in
+    --release) BUILD_TYPE="Release" ;;
+    -r) RUN_EXEC=true ;;
+  esac
+done
 
 BUILD_DIR="build/${BUILD_TYPE,,}"
 
@@ -16,5 +20,7 @@ cd "$BUILD_DIR"
 cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE ../..
 make
 
-echo "Running ./simpleProxy ($BUILD_TYPE build)"
-./simpleProxy
+if [ "$RUN_EXEC" = true ]; then
+  echo "Running ./simpleProxy ($BUILD_TYPE build)"
+  ./simpleProxy
+fi
