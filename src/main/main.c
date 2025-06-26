@@ -14,8 +14,10 @@ int active_threads = 0;
 pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void cleanup(int signum){
-    write(STDOUT_FILENO, "\nCleaning up and exiting...\n", 28);
-    write(STDOUT_FILENO, "Closing socket\n", 15);
+    ssize_t ignored;
+    ignored = write(STDOUT_FILENO, "\nCleaning up and exiting...\n", 28);
+    ignored = write(STDOUT_FILENO, "Closing socket\n", 15);
+    
     if (server_sock != -1){
         close(server_sock);
     }

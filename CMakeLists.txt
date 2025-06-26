@@ -14,13 +14,15 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 execute_process(COMMAND mysql_config --cflags
     OUTPUT_VARIABLE MYSQL_CFLAGS
     OUTPUT_STRIP_TRAILING_WHITESPACE)
+separate_arguments(MYSQL_CFLAGS)
 
 execute_process(COMMAND mysql_config --libs
     OUTPUT_VARIABLE MYSQL_LIBS
     OUTPUT_STRIP_TRAILING_WHITESPACE)
+separate_arguments(MYSQL_LIBS)
 
-# Core library
-add_library(simpleProxyCore STATIC
+# Core library (SHARED)
+add_library(simpleProxyCore SHARED
     src/core/proxy.c
     src/core/util.c
     src/core/http.c
@@ -40,7 +42,10 @@ target_link_libraries(simpleProxyCore PRIVATE ${MYSQL_LIBS})
 # Define _POSIX_C_SOURCE
 target_compile_definitions(simpleProxyCore PRIVATE _POSIX_C_SOURCE=200809L)
 
-# Add Debug/Release flags
+# Enable link-time optimization (interprocedural)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+# Debug/Release compiler flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(simpleProxyCore PRIVATE DEBUG_MODE=1)
     target_compile_options(simpleProxyCore PRIVATE -g -O0)
@@ -52,7 +57,9 @@ endif()
 # Executable 1: simpleProxy
 add_executable(simpleProxy src/main/main.c)
 target_link_libraries(simpleProxy PRIVATE simpleProxyCore)
+set_target_properties(simpleProxy PROPERTIES BUILD_RPATH "$ORIGIN")
 
 # Executable 2: simpleProxyConfig
 add_executable(simpleProxyConfig src/proxy_config/proxy_config.c)
-target_link_libraries(simpleProxyConfig PRIVATE simpleProxyCore)
+target_link_libraries(simpleProxyConfig PRIVATE simpleProxyCore ${MYSQL_LIBS})
+set_target_properties(simpleProxyConfig PROPERTIES BUILD_RPATH "$ORIGIN")
