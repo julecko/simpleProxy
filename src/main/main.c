@@ -1,5 +1,5 @@
-#define _POSIX_C_SOURCE 200809L
 #include "./proxy.h"
+#include "./common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,6 +20,7 @@ void cleanup(int signum){
     
     if (server_sock != -1){
         close(server_sock);
+        server_sock = NULL;
     }
     _exit(EXIT_SUCCESS);
 }

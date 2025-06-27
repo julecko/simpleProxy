@@ -29,6 +29,31 @@ MYSQL_RES *db_execute(MYSQL *conn, const char* query){
     return mysql_store_result(conn);
 }
 
+void db_print_query_result(MYSQL_RES *result) {
+    if (!result) {
+        fprintf(stderr, "No results to print.\n");
+        return;
+    }
+
+    unsigned int num_fields = mysql_num_fields(result);
+    MYSQL_FIELD *fields = mysql_fetch_fields(result);
+    MYSQL_ROW row;
+
+    for (unsigned int i = 0; i < num_fields; i++) {
+        printf("%s\t", fields[i].name);
+    }
+    printf("\n");
+
+    while ((row = mysql_fetch_row(result))) {
+        for (unsigned int i = 0; i < num_fields; i++) {
+            printf("%s\t", row[i] ? row[i] : "NULL");
+        }
+        printf("\n");
+    }
+
+    mysql_free_result(result);
+}
+
 void db_close(MYSQL *conn) {
     if (conn) {
         mysql_close(conn);

@@ -32,6 +32,7 @@ add_library(simpleProxyCore SHARED
     src/core/db/db.c
     src/core/db/migration.c
     src/core/db/user.c
+    src/core/db/util.c
 )
 
 # Threads
@@ -41,9 +42,6 @@ target_link_libraries(simpleProxyCore PUBLIC Threads::Threads)
 # Apply MySQL flags to the core
 target_compile_options(simpleProxyCore PRIVATE ${MYSQL_CFLAGS})
 target_link_libraries(simpleProxyCore PRIVATE ${MYSQL_LIBS})
-
-# Define _POSIX_C_SOURCE
-target_compile_definitions(simpleProxyCore PRIVATE _POSIX_C_SOURCE=200809L)
 
 # Enable link-time optimization (interprocedural)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)

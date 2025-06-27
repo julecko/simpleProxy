@@ -1,7 +1,8 @@
-#ifndef MIGRATION_H
-#define MIGRATION_H
+#ifndef DB_MIGRATION_H
+#define DB_MIGRATION_H
 
 #include <stdlib.h>
+#include <mysql/mysql.h>
 
 typedef struct {
     const char *name;
@@ -17,5 +18,6 @@ typedef struct {
 } Table;
 
 char *create_table_sql(Table *table);
+char *db_drop_database(MYSQL *conn);
 
 #endif

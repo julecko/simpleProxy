@@ -1,4 +1,6 @@
 #include "./db/migration.h"
+#include "./db/util.h"
+#include <mysql/mysql.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -31,10 +33,20 @@ char *create_table_sql(Table *table) {
     return sql;
 }
 
-char *db_reset_database() {
-    return strdup(
-        "SELECT CONCAT('DROP TABLE IF EXISTS ', GROUP_CONCAT(CONCAT('`', table_name, '`'))) "
-        "INTO @stmt FROM information_schema.tables WHERE table_schema = DATABASE(); "
-        "PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;"
-    );
+char *db_drop_database(MYSQL *conn) {
+    char *tables = get_all_tables(conn);
+    if (!tables) {
+        return NULL;
+    }
+    
+    char *query;
+    int needed = snprintf(NULL, 0, "DROP TABLE IF EXISTS %s;", tables);
+    query = malloc(needed + 1);
+    if (!query) {
+        free(tables);
+        return NULL;
+    }
+    sprintf(query, "DROP TABLE IF EXISTS %s;", tables);
+    free(tables);
+    return query;
 }
