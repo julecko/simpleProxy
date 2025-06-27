@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static inline char* column_to_sql(const Column* col) {
+static inline char *column_to_sql(const Column* col) {
     char buffer[512];
 
     if (col->length > 0)
@@ -14,7 +14,7 @@ static inline char* column_to_sql(const Column* col) {
     return strdup(buffer);
 }
 
-char* create_table_sql(Table *table) {
+char *create_table_sql(Table *table) {
     char* sql = malloc(4096);
     if (!sql) return NULL;
 
@@ -29,4 +29,12 @@ char* create_table_sql(Table *table) {
 
     snprintf(sql + len, 4096 - len, ");");
     return sql;
+}
+
+char *db_reset_database() {
+    return strdup(
+        "SELECT CONCAT('DROP TABLE IF EXISTS ', GROUP_CONCAT(CONCAT('`', table_name, '`'))) "
+        "INTO @stmt FROM information_schema.tables WHERE table_schema = DATABASE(); "
+        "PREPARE stmt FROM @stmt; EXECUTE stmt; DEALLOCATE PREPARE stmt;"
+    );
 }

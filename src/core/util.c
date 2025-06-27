@@ -61,3 +61,8 @@ char* base64_encode(const unsigned char *input, size_t len) {
     output[output_len] = '\0';
     return output;
 }
+
+const char* get_program_name(const char* path) {
+    const char* slash = strrchr(path, '/');
+    return slash ? slash + 1 : path;
+}

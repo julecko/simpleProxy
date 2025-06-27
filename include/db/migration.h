@@ -4,18 +4,18 @@
 #include <stdlib.h>
 
 typedef struct {
-    const char* name;
-    const char* type;
+    const char *name;
+    const char *type;
     int length;
-    const char* extra;
+    const char *extra;
 } Column;
 
 typedef struct {
-    const char* name;
-    Column* columns;
+    const char *name;
+    Column *columns;
     size_t column_count;
 } Table;
 
-char* create_table_sql(Table *table);
+char *create_table_sql(Table *table);
 
 #endif

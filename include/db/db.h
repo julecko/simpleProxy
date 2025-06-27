@@ -4,7 +4,7 @@
 #include <mysql/mysql.h>
 
 MYSQL *db_create();
-MYSQL_RES *db_execute(MYSQL *conn, const char* query);
+MYSQL_RES *db_execute(MYSQL *conn, const char *query);
 void db_close(MYSQL *conn);
 
 
