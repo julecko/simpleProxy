@@ -1,32 +1,35 @@
-#include <mysql/mysql.h>
+#include "db.h"
 #include <stdio.h>
 
-MYSQL *db_create(){
-    MYSQL *conn = mysql_init(NULL);
-
-    if (conn == NULL) {
+bool db_create(DB *db) {
+    db->conn = mysql_init(NULL);
+    if (db->conn == NULL) {
         fprintf(stderr, "mysql_init() failed\n");
-        return NULL;
+        return false;
     }
 
-    if (mysql_real_connect(conn, "127.0.0.1", "mysql", "mysql",
+    if (mysql_real_connect(db->conn, "127.0.0.1", "mysql", "mysql",
                            "simpleProxy", 3306, NULL, 0) == NULL) {
-        fprintf(stderr, "mysql_real_connect() failed:\nError: %s\n", mysql_error(conn));
-        mysql_close(conn);
-        return NULL;
+        fprintf(stderr, "mysql_real_connect() failed:\nError: %s\n", mysql_error(db->conn));
+        mysql_close(db->conn);
+        db->conn = NULL;
+        return false;
     }
 
-    return conn;
+    return true;
 }
 
-MYSQL_RES *db_execute(MYSQL *conn, const char* query){
-    if (mysql_query(conn, query)) {
-        fprintf(stderr, "Query failed: %s\n", mysql_error(conn));
-        mysql_close(conn);
+MYSQL_RES *db_execute(DB *db, const char *query) {
+    if (mysql_query(db->conn, query)) {
+        fprintf(stderr, "Query failed: %s\n", mysql_error(db->conn));
         return NULL;
     }
 
-    return mysql_store_result(conn);
+    return mysql_store_result(db->conn);
+}
+
+bool db_check_connection(DB *db) {
+    return db->conn && mysql_ping(db->conn) == 0;
 }
 
 void db_print_query_result(MYSQL_RES *result) {
@@ -54,8 +57,9 @@ void db_print_query_result(MYSQL_RES *result) {
     mysql_free_result(result);
 }
 
-void db_close(MYSQL *conn) {
-    if (conn) {
-        mysql_close(conn);
+void db_close(DB *db) {
+    if (db->conn) {
+        mysql_close(db->conn);
+        db->conn = NULL;
     }
 }
