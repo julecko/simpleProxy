@@ -54,3 +54,14 @@ char *db_user_verify(const char* name, const char* pass) {
 
     return query;
 }
+
+char *db_user_remove(const char *name){
+    char *query = malloc(1024);
+    if (!query) return NULL;
+
+    snprintf(query, 1024,
+        "DELETE FROM `%s` WHERE username = '%s'",
+        TABLE_NAME, name);
+
+    return query;
+}

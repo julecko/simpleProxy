@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <termios.h>
+#include <unistd.h>
 
 int parse_host_port(const char *request, char *host, int *port) {
     const char *host_header = strstr(request, "\nHost:");
@@ -65,4 +67,31 @@ char* base64_encode(const unsigned char *input, size_t len) {
 const char* get_program_name(const char* path) {
     const char* slash = strrchr(path, '/');
     return slash ? slash + 1 : path;
+}
+
+char *get_password(const char *prompt) {
+    struct termios oldt, newt;
+    char *password = malloc(256);
+    if (!password) return NULL;
+
+    printf("%s", prompt);
+    fflush(stdout);
+
+    // Turn off terminal echo
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    if (!fgets(password, 256, stdin)) {
+        free(password);
+        password = NULL;
+    } else {
+        password[strcspn(password, "\n")] = '\0';
+    }
+
+    // Restore terminal settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    printf("\n");
+    return password;
 }

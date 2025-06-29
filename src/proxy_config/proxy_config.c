@@ -133,7 +133,9 @@ int main(int argc, char* argv[]) {
     }
     else if (strcmp(command, "add") == 0) {
         printf("Adding user: %s\n", username);
-        char* query = db_user_add_encrypt(username, "Jozko");
+        char* password = get_password("Password: ");
+        char* query = db_user_add_encrypt(username, password);
+        free(password);
         if (query) {
             MYSQL_RES *res = db_execute(&db, query);
             if (res) {
@@ -146,7 +148,17 @@ int main(int argc, char* argv[]) {
     } 
     else if (strcmp(command, "remove") == 0) {
         printf("Removing user: %s\n", username);
-    } 
+        char* query = db_user_remove(username);
+        if (query) {
+            MYSQL_RES *res = db_execute(&db, query);
+            if (res) {
+                printf("Removing successful.\n");
+            } else {
+                fprintf(stderr, "Removing of user failed or no result returned.\n");
+            }
+            free(query);
+        }
+    }
     else {
         fprintf(stderr, "Unknown command: %s\n", command);
         print_help_default(program_name);

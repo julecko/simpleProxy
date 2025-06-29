@@ -12,7 +12,7 @@ int has_valid_auth(const char *request) {
     while (isspace(*auth_header)) auth_header++;
 
     if (strncmp(auth_header, AUTH_CREDENTIALS, strlen(AUTH_CREDENTIALS)) == 0) {
-        return 1; //For testing purposes
+        return 1;
     }
 
     return 0;
