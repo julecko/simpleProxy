@@ -1,5 +1,6 @@
 #include "./db/migration.h"
 #include "./db/util.h"
+#include "./db/db.h"
 #include <mysql/mysql.h>
 #include <string.h>
 #include <stdlib.h>
@@ -33,8 +34,8 @@ char *create_table_sql(Table *table) {
     return sql;
 }
 
-char *db_drop_database(MYSQL *conn) {
-    char *tables = get_all_tables(conn);
+char *db_drop_database(DB *db) {
+    char *tables = get_all_tables(db->conn);
     if (!tables) {
         return NULL;
     }

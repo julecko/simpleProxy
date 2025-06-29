@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <mysql/mysql.h>
+#include "./db/db.h"
 
 typedef struct {
     const char *name;
@@ -18,6 +19,6 @@ typedef struct {
 } Table;
 
 char *create_table_sql(Table *table);
-char *db_drop_database(MYSQL *conn);
+char *db_drop_database(DB *db);
 
 #endif

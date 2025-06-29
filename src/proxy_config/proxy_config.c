@@ -10,16 +10,15 @@
 #include <signal.h>
 #include <unistd.h>
 
-MYSQL *conn = NULL;
+DB db;
 
 void cleanup(int signum) {
     ssize_t ignored;
     ignored = write(STDOUT_FILENO, "\nCleaning up and exiting...\n", 28);
     ignored = write(STDOUT_FILENO, "Closing database connection\n", 27);
 
-    if (conn) {
-        db_close(conn);
-        conn = NULL;
+    if (db.conn) {
+        db_close(&db);
     }
 
     _exit(EXIT_SUCCESS);
@@ -66,8 +65,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    conn = db_create();
-    if (!conn) {
+    if (!db_create(&db)) {
         fprintf(stderr, "Failed to connect to database.\n");
         return EXIT_FAILURE;
     }
@@ -77,7 +75,7 @@ int main(int argc, char* argv[]) {
 
     if (strcmp(command, "-h") == 0 || strcmp(command, "--help") == 0) {
         print_help_default(program_name);
-        db_close(conn);
+        db_close(&db);
         return EXIT_SUCCESS;
     }
 
@@ -85,7 +83,7 @@ int main(int argc, char* argv[]) {
         if (argc != 4 || (strcmp(argv[2], "-u") != 0 && strcmp(argv[2], "--user") != 0)) {
             fprintf(stderr, "Error: '%s' requires -u <username>\n", command);
             print_help_default(program_name);
-            db_close(conn);
+            db_close(&db);
             return EXIT_FAILURE;
         }
         username = argv[3];
@@ -95,9 +93,8 @@ int main(int argc, char* argv[]) {
         printf("Migrating...\n");
         char *query = db_user_migration();
         if (query) {
-            MYSQL_RES *res = db_execute(conn, query);
+            MYSQL_RES *res = db_execute(&db, query);
             if (res) {
-                db_print_query_result(res);
                 printf("Migration successful.\n");
             } else {
                 fprintf(stderr, "Migration failed or no result returned.\n");
@@ -107,28 +104,25 @@ int main(int argc, char* argv[]) {
     } 
     else if (strcmp(command, "drop") == 0) {
         printf("Dropping database...\n");
-        char *query = db_drop_database(conn);
+        char *query = db_drop_database(&db);
         if (query) {
-            MYSQL_RES *res = db_execute(conn, query);
+            MYSQL_RES *res = db_execute(&db, query);
             if (res) {
-                db_print_query_result(res);
                 printf("Drop successful.\n");
             } else {
                 fprintf(stderr, "Drop failed or no result returned.\n");
             }
             free(query);
         }
-    } 
+    }
     else if (strcmp(command, "reset") == 0) {
         printf("Resetting database (drop + migrate)...\n");
-        char *drop_query = db_drop_database(conn);
+        char *drop_query = db_drop_database(&db);
         char *migrate_query = db_user_migration();
         if (drop_query && migrate_query) {
-            MYSQL_RES *res_drop = db_execute(conn, drop_query);
-            MYSQL_RES *res_migrate = db_execute(conn, migrate_query);
+            MYSQL_RES *res_drop = db_execute(&db, drop_query);
+            MYSQL_RES *res_migrate = db_execute(&db, migrate_query);
             if (res_drop && res_migrate) {
-                db_print_query_result(res_drop);
-                db_print_query_result(res_migrate);
                 printf("Reset successful.\n");
             } else {
                 fprintf(stderr, "Reset failed or no results returned.\n");
@@ -139,6 +133,16 @@ int main(int argc, char* argv[]) {
     }
     else if (strcmp(command, "add") == 0) {
         printf("Adding user: %s\n", username);
+        char* query = db_user_add_encrypt(username, "Jozko");
+        if (query) {
+            MYSQL_RES *res = db_execute(&db, query);
+            if (res) {
+                printf("Adding successful.\n");
+            } else {
+                fprintf(stderr, "Adding of user failed or no result returned.\n");
+            }
+            free(query);
+        }
     } 
     else if (strcmp(command, "remove") == 0) {
         printf("Removing user: %s\n", username);
@@ -146,10 +150,10 @@ int main(int argc, char* argv[]) {
     else {
         fprintf(stderr, "Unknown command: %s\n", command);
         print_help_default(program_name);
-        db_close(conn);
+        db_close(&db);
         return EXIT_FAILURE;
     }
 
-    db_close(conn);
+    db_close(&db);
     return EXIT_SUCCESS;
 }

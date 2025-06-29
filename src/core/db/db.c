@@ -1,4 +1,4 @@
-#include "db.h"
+#include "./db/db.h"
 #include <stdio.h>
 
 bool db_create(DB *db) {
@@ -25,7 +25,13 @@ MYSQL_RES *db_execute(DB *db, const char *query) {
         return NULL;
     }
 
-    return mysql_store_result(db->conn);
+    MYSQL_RES *result = mysql_store_result(db->conn);
+
+    if (result == NULL && mysql_field_count(db->conn) == 0) {
+        return (MYSQL_RES *)1;
+    }
+
+    return result;
 }
 
 bool db_check_connection(DB *db) {
