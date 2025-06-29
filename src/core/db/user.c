@@ -1,5 +1,6 @@
 #include "./db/migration.h"
 #include "./util.h"
+#include "./db/user.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -33,26 +34,51 @@ char *db_user_add(const char* name, const char* base64_pass) {
     return query;
 }
 
-char *db_user_add_encrypt(const char* name, const char* pass){
-    char *base64_pass = base64_encode(pass, strlen(pass));
-    char *query = db_user_add(name, base64_pass);
-    
-    free(base64_pass);
-
-    return query;
-}
-
-char *db_user_verify(const char* name, const char* pass) {
+char *db_user_get(const char* name) {
     char *query = malloc(1024);
     if (!query) {
         return NULL;
     }
 
     snprintf(query, 1024,
-        "SELECT 1 FROM `%s` WHERE username = '%s' AND password = '%s' LIMIT 1;",
-        TABLE_NAME, name, pass);
+        "SELECT username, password FROM `%s` WHERE username = '%s' LIMIT 1;",
+        TABLE_NAME, name);
 
     return query;
+}
+
+User *db_user_get_from_result(MYSQL_RES *res) {
+    if (!res) return NULL;
+
+    MYSQL_ROW row = mysql_fetch_row(res);
+    if (!row) return NULL;
+
+    char *username = row[0];
+    char *password = row[1];
+
+    if (!username || !password) return NULL;
+
+    User *user = malloc(sizeof(User));
+    if (!user) return NULL;
+
+    user->username = strdup(username);
+    user->password = strdup(password);
+
+    if (!user->username || !user->password) {
+        free(user->username);
+        free(user->password);
+        free(user);
+        return NULL;
+    }
+
+    return user;
+}
+
+void db_user_free(User *user) {
+    if (!user) return;
+    free(user->username);
+    free(user->password);
+    free(user);
 }
 
 char *db_user_remove(const char *name){

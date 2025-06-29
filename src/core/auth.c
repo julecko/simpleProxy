@@ -1,3 +1,5 @@
+#include "./db/db.h"
+#include "./db/user.h"
 #include <string.h>
 #include <ctype.h>
 #include <arpa/inet.h>
@@ -16,6 +18,10 @@ int has_valid_auth(const char *request) {
     }
 
     return 0;
+}
+
+User *get_user_from_b64(const char* base64){
+    
 }
 
 void send_proxy_auth_required(int client_socket) {

@@ -64,6 +64,66 @@ char* base64_encode(const unsigned char *input, size_t len) {
     return output;
 }
 
+char* base64_decode(const char *input, size_t len) {
+    static const unsigned char base64_dtable[256] = {
+        [0 ... 255] = 0x80,
+        ['A'] = 0,  ['B'] = 1,  ['C'] = 2,  ['D'] = 3,
+        ['E'] = 4,  ['F'] = 5,  ['G'] = 6,  ['H'] = 7,
+        ['I'] = 8,  ['J'] = 9,  ['K'] = 10, ['L'] = 11,
+        ['M'] = 12, ['N'] = 13, ['O'] = 14, ['P'] = 15,
+        ['Q'] = 16, ['R'] = 17, ['S'] = 18, ['T'] = 19,
+        ['U'] = 20, ['V'] = 21, ['W'] = 22, ['X'] = 23,
+        ['Y'] = 24, ['Z'] = 25,
+        ['a'] = 26, ['b'] = 27, ['c'] = 28, ['d'] = 29,
+        ['e'] = 30, ['f'] = 31, ['g'] = 32, ['h'] = 33,
+        ['i'] = 34, ['j'] = 35, ['k'] = 36, ['l'] = 37,
+        ['m'] = 38, ['n'] = 39, ['o'] = 40, ['p'] = 41,
+        ['q'] = 42, ['r'] = 43, ['s'] = 44, ['t'] = 45,
+        ['u'] = 46, ['v'] = 47, ['w'] = 48, ['x'] = 49,
+        ['y'] = 50, ['z'] = 51,
+        ['0'] = 52, ['1'] = 53, ['2'] = 54, ['3'] = 55,
+        ['4'] = 56, ['5'] = 57, ['6'] = 58, ['7'] = 59,
+        ['8'] = 60, ['9'] = 61,
+        ['+'] = 62, ['/'] = 63,
+        ['='] = 0
+    };
+
+    if (len % 4 != 0) return NULL;
+
+    size_t padding = 0;
+    if (len >= 2) {
+        if (input[len - 1] == '=') padding++;
+        if (input[len - 2] == '=') padding++;
+    }
+
+    size_t decoded_len = (len / 4) * 3 - padding;
+    char *decoded = malloc(decoded_len + 1);
+    if (!decoded) return NULL;
+
+    size_t i, j;
+    uint32_t accumulator = 0;
+    int bits_collected = 0;
+
+    for (i = 0, j = 0; i < len; i++) {
+        unsigned char c = input[i];
+        unsigned char val = base64_dtable[c];
+
+        if (val & 0x80) return NULL;
+
+        accumulator = (accumulator << 6) | val;
+        bits_collected += 6;
+
+        if (bits_collected >= 8) {
+            bits_collected -= 8;
+            decoded[j++] = (accumulator >> bits_collected) & 0xFF;
+        }
+    }
+
+    decoded[decoded_len] = '\0';
+
+    return decoded;
+}
+
 const char* get_program_name(const char* path) {
     const char* slash = strrchr(path, '/');
     return slash ? slash + 1 : path;
