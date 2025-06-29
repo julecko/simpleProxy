@@ -3,6 +3,7 @@
 #include "./db/user.h"
 #include "./db/migration.h"
 #include "./util.h"
+#include "./auth.h"
 #include <mysql/mysql.h>
 #include <stdio.h>
 #include <string.h>
@@ -134,7 +135,7 @@ int main(int argc, char* argv[]) {
     else if (strcmp(command, "add") == 0) {
         printf("Adding user: %s\n", username);
         char* password = get_password("Password: ");
-        char* query = db_user_add_encrypt(username, password);
+        char* query = db_user_add(username, password);
         free(password);
         if (query) {
             MYSQL_RES *res = db_execute(&db, query);
@@ -155,6 +156,25 @@ int main(int argc, char* argv[]) {
                 printf("Removing successful.\n");
             } else {
                 fprintf(stderr, "Removing of user failed or no result returned.\n");
+            }
+            free(query);
+        }
+    }
+    else if (strcmp(command, "test") == 0) {
+        printf("Testing\n");
+        char *query = db_user_get("Julko");
+        if (query) {
+            MYSQL_RES *res = db_execute(&db, query);
+            if (res) {
+                printf("Testing successful.\n");
+                User* user = get_user_from_b64("dXNlcjpwYXNz");
+                if (user){
+                    printf("Username: %s\nPassword: %s\n", user->username, user->password);
+                    printf("Decoded: %s", base64_decode("dXNlcjpwYXNz", strlen("dXNlcjpwYXNz")));
+                    db_user_free(user);
+                }
+            } else {
+                fprintf(stderr, "Testing failed.\n");
             }
             free(query);
         }

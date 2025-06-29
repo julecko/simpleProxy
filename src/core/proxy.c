@@ -2,6 +2,7 @@
 #include "./http.h"
 #include "./https.h"
 #include "./auth.h"
+#include "./db/db.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,17 +54,23 @@ static int read_request(int sock, char **headers_out, size_t *len_out) {
     while (1) {
         ssize_t n = recv(sock, buffer + len, capacity - len, 0);
         if (n <= 0) {
+            perror("recv failed");
             free(buffer);
             return -1;
         }
+
         len += n;
-        if (len >= 4 && strstr(buffer, "\r\n\r\n") != NULL) {
+        buffer[len] = '\0';
+
+        if (strstr(buffer, "\r\n\r\n") != NULL) {
             break;
         }
+
         if (len == capacity) {
             capacity *= 2;
             char *newbuf = realloc(buffer, capacity);
             if (!newbuf) {
+                perror("realloc failed");
                 free(buffer);
                 return -1;
             }
@@ -71,13 +78,13 @@ static int read_request(int sock, char **headers_out, size_t *len_out) {
         }
     }
 
-    buffer[len] = 0;
     *headers_out = buffer;
     *len_out = len;
     return 0;
 }
 
-void handle_client(int client_socket) {
+
+void handle_client(DB *db, int client_socket) {
     char *request = NULL;
     size_t request_len = 0;
 
@@ -87,7 +94,7 @@ void handle_client(int client_socket) {
         return;
     }
 
-    if (!has_valid_auth(request)) {
+    if (!has_valid_auth(db, request)) {
         printf("Authentication failed or missing\n");
         send_proxy_auth_required(client_socket);
         free(request);

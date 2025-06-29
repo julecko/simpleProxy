@@ -1,6 +1,8 @@
 #ifndef DB_USER_H
 #define DB_USER_H
 
+#include <mysql/mysql.h>
+
 typedef struct User {
     char* username;
     char* password;

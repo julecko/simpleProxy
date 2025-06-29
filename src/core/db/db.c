@@ -1,5 +1,6 @@
 #include "./db/db.h"
 #include <stdio.h>
+#include <pthread.h>
 
 bool db_create(DB *db) {
     db->conn = mysql_init(NULL);
@@ -16,21 +17,27 @@ bool db_create(DB *db) {
         return false;
     }
 
+    pthread_mutex_init(&db->lock, NULL);
     return true;
 }
 
 MYSQL_RES *db_execute(DB *db, const char *query) {
+    pthread_mutex_lock(&db->lock);
+
     if (mysql_query(db->conn, query)) {
         fprintf(stderr, "Query failed: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->lock);
         return NULL;
     }
 
     MYSQL_RES *result = mysql_store_result(db->conn);
 
     if (result == NULL && mysql_field_count(db->conn) == 0) {
+        pthread_mutex_unlock(&db->lock);
         return (MYSQL_RES *)1;
     }
 
+    pthread_mutex_unlock(&db->lock);
     return result;
 }
 
@@ -68,4 +75,5 @@ void db_close(DB *db) {
         mysql_close(db->conn);
         db->conn = NULL;
     }
+    pthread_mutex_destroy(&db->lock);
 }

@@ -3,9 +3,11 @@
 
 #include <mysql/mysql.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 typedef struct {
     MYSQL *conn;
+    pthread_mutex_t lock;
 } DB;
 
 bool db_create(DB *db);

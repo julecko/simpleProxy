@@ -1,5 +1,6 @@
-#include "./proxy.h"
 #include "./common.h"
+#include "./proxy.h"
+#include "./db/db.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -8,6 +9,11 @@
 #include <pthread.h>
 
 #define MAX_CONNECTIONS 20
+
+typedef struct ClientArgs{
+    DB *db;
+    int client_sock;
+} ClientArgs;
 
 int server_sock = -1;
 int active_threads = 0;
@@ -20,7 +26,7 @@ void cleanup(int signum){
     
     if (server_sock != -1){
         close(server_sock);
-        server_sock = NULL;
+        server_sock = -1;
     }
     _exit(EXIT_SUCCESS);
 }
@@ -43,10 +49,13 @@ void register_signal_handler(void (*handler)(int)) {
 
 
 void *client_thread(void *arg) {
-    int client_sock = *(int*)arg;
-    free(arg);
+    ClientArgs *args = (ClientArgs *)arg;
 
-    handle_client(client_sock);
+    int client_sock = args->client_sock;
+    DB *db = args->db;
+    free(args);
+
+    handle_client(db, client_sock);
     close(client_sock);
 
     pthread_mutex_lock(&count_mutex);
@@ -56,7 +65,7 @@ void *client_thread(void *arg) {
     return NULL;
 }
 
-void run_loop(int server_sock){
+void run_loop(DB *db, int server_sock){
     while (1) {
         pthread_mutex_lock(&count_mutex);
         int current_active = active_threads;
@@ -67,22 +76,23 @@ void run_loop(int server_sock){
             continue;
         }
 
-        int *client_sock_ptr = malloc(sizeof(int));
-        if (!client_sock_ptr) {
+        ClientArgs *args = malloc(sizeof(ClientArgs));
+        if (!args) {
             perror("malloc");
             continue;
         }
-        *client_sock_ptr = accept_connection(server_sock);
-        if (*client_sock_ptr < 0) {
-            free(client_sock_ptr);
+        args->db = db;
+        args->client_sock = accept_connection(server_sock);
+        if (args->client_sock < 0) {
+            free(args);
             continue;
         }
 
         pthread_t tid;
-        if (pthread_create(&tid, NULL, client_thread, client_sock_ptr) != 0) {
+        if (pthread_create(&tid, NULL, client_thread, args) != 0) {
             perror("pthread_create");
-            close(*client_sock_ptr);
-            free(client_sock_ptr);
+            close(args->client_sock);
+            free(args);
             continue;
         }
 
@@ -97,13 +107,16 @@ void run_loop(int server_sock){
 int main() {
     register_signal_handler(cleanup);
 
+    DB db;
+    db_create(&db);
+
     server_sock = create_server_socket(8080, 5);
 
     if (server_sock < 0) return 1;
 
     printf("Proxy server running on port 8080...\n");
 
-    run_loop(server_sock);
+    run_loop(&db, server_sock);
 
     close(server_sock);
     return 0;
