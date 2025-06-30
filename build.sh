@@ -20,6 +20,11 @@ cd "$BUILD_DIR"
 cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE ../..
 make
 
+if [ "$BUILD_TYPE" == "Release" ]; then
+  echo "Generating .deb package..."
+  cpack -G DEB
+fi
+
 if [ "$RUN_EXEC" = true ]; then
   echo "Running ./simpleProxy ($BUILD_TYPE build)"
   ./simpleProxy

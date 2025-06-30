@@ -1,0 +1,13 @@
+[Unit]
+Description=SimpleProxy Server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/simpleProxy
+Restart=always
+RestartSec=3
+User=nobody
+Group=nogroup
+
+[Install]
+WantedBy=multi-user.target

@@ -108,7 +108,10 @@ int main() {
     register_signal_handler(cleanup);
 
     DB db;
-    db_create(&db);
+    if (!db_create(&db)){
+        fprintf(stderr, "Failed to connect to database.\n");
+        return EXIT_FAILURE;
+    }
 
     server_sock = create_server_socket(8080, 5);
 
