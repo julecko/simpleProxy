@@ -107,8 +107,14 @@ void run_loop(DB *db, int server_sock){
 int main() {
     register_signal_handler(cleanup);
 
+    Config config = load_config(CONF_PATH);
+    if (check_config(&config)){
+        fprintf(stderr, "Configuration file is incomplete or corrupted\n");
+        return EXIT_FAILURE;
+    }
+
     DB db;
-    if (!db_create(&db)){
+    if (!db_create(&db, &config)){
         fprintf(stderr, "Failed to connect to database.\n");
         return EXIT_FAILURE;
     }

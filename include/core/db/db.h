@@ -1,6 +1,7 @@
 #ifndef DB_H
 #define DB_H
 
+#include "./config.h"
 #include <mysql/mysql.h>
 #include <stdbool.h>
 #include <pthread.h>
@@ -10,7 +11,7 @@ typedef struct {
     pthread_mutex_t lock;
 } DB;
 
-bool db_create(DB *db);
+bool db_create(DB *db, Config *config);
 MYSQL_RES *db_execute(DB *db, const char *query);
 void db_close(DB *db);
 void db_print_query_result(MYSQL_RES *result);

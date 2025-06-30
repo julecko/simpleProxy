@@ -22,6 +22,7 @@ separate_arguments(MYSQL_LIBS)
 # Core library (SHARED)
 add_library(simpleproxycore SHARED
     src/core/util.c
+    src/core/config.c
     src/core/collections/hashset.c
     src/core/db/db.c
     src/core/db/migration.c
@@ -47,11 +48,11 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Debug/Release compiler flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_definitions(simpleproxycore PRIVATE DEBUG_MODE=1)
-    target_compile_options(simpleproxycore PRIVATE -g -O0)
+    add_compile_definitions(DEBUG_MODE=1)
+    add_compile_options(-g -O0)
 else()
-    target_compile_definitions(simpleproxycore PRIVATE NDEBUG)
-    target_compile_options(simpleproxycore PRIVATE -O3)
+    add_compile_definitions(NDEBUG)
+    add_compile_options(-O3)
 endif()
 
 # Executable 1: simpleProxy

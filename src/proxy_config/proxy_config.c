@@ -1,9 +1,12 @@
+#include "./common.h"
 #include "./commands.h"
 #include "./db/db.h"
 #include "./util.h"
+#include "./config.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+
 
 int main(int argc, char *argv[]) {
     const char *program_name = get_program_name(argv[0]);
@@ -12,9 +15,15 @@ int main(int argc, char *argv[]) {
         print_command_help(program_name);
         return EXIT_FAILURE;
     }
+    printf("%s\n", CONF_PATH);
+    Config config = load_config(CONF_PATH);
+    if (check_config(&config)){
+        fprintf(stderr, "Configuration file is incomplete or corrupted\n");
+        return EXIT_FAILURE;
+    }
 
     DB db;
-    if (!db_create(&db)) {
+    if (!db_create(&db, &config)) {
         fprintf(stderr, "Failed to connect to database.\n");
         return EXIT_FAILURE;
     }

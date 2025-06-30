@@ -1,16 +1,17 @@
 #include "./db/db.h"
+#include "./config.h"
 #include <stdio.h>
 #include <pthread.h>
 
-bool db_create(DB *db) {
+bool db_create(DB *db, Config *config) {
     db->conn = mysql_init(NULL);
     if (db->conn == NULL) {
         fprintf(stderr, "mysql_init() failed\n");
         return false;
     }
 
-    if (mysql_real_connect(db->conn, "127.0.0.1", "mysql", "mysql",
-                           "simpleProxy", 3306, NULL, 0) == NULL) {
+    if (mysql_real_connect(db->conn, config->db_host, config->db_user, config->db_pass,
+                           config->db_database, config->db_port, NULL, 0) == NULL) {
         fprintf(stderr, "mysql_real_connect() failed:\nError: %s\n", mysql_error(db->conn));
         mysql_close(db->conn);
         db->conn = NULL;
