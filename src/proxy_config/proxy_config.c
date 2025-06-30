@@ -1,4 +1,4 @@
-#include "./proxy_config/commands.h"
+#include "./commands.h"
 #include "./db/db.h"
 #include "./util.h"
 #include <string.h>

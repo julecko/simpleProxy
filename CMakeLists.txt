@@ -8,8 +8,6 @@ endif()
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-include_directories(${PROJECT_SOURCE_DIR}/include)
-
 # Detect MySQL client flags via mysql_config
 execute_process(COMMAND mysql_config --cflags
     OUTPUT_VARIABLE MYSQL_CFLAGS
@@ -23,11 +21,7 @@ separate_arguments(MYSQL_LIBS)
 
 # Core library (SHARED)
 add_library(simpleproxycore SHARED
-    src/core/proxy.c
     src/core/util.c
-    src/core/http.c
-    src/core/https.c
-    src/core/auth.c
     src/core/collections/hashset.c
     src/core/db/db.c
     src/core/db/migration.c
@@ -43,6 +37,11 @@ target_link_libraries(simpleproxycore PUBLIC Threads::Threads)
 target_compile_options(simpleproxycore PRIVATE ${MYSQL_CFLAGS})
 target_link_libraries(simpleproxycore PRIVATE ${MYSQL_LIBS})
 
+# Include core headers globally for everything linking simpleproxycore
+target_include_directories(simpleproxycore PUBLIC
+    ${PROJECT_SOURCE_DIR}/include/core
+)
+
 # Enable link-time optimization (interprocedural)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
@@ -56,18 +55,31 @@ else()
 endif()
 
 # Executable 1: simpleProxy
-add_executable(simpleproxy src/main/main.c)
-target_link_libraries(simpleproxy PRIVATE simpleproxycore)
+add_executable(simpleproxy
+    src/main/main.c
+    src/main/proxy.c
+    src/main/http.c
+    src/main/https.c
+    src/main/auth.c
+)
+
+target_include_directories(simpleproxy PRIVATE
+    ${PROJECT_SOURCE_DIR}/include/main
+)
+target_link_libraries(simpleproxy PRIVATE simpleproxycore ${MYSQL_LIBS})
 set_target_properties(simpleproxy PROPERTIES BUILD_RPATH "$ORIGIN")
 
 # Executable 2: simpleProxyConfig
-add_executable(simpleproxy-config 
+add_executable(simpleproxy-config
     src/proxy_config/proxy_config.c
     src/proxy_config/commands.c
 )
+
+target_include_directories(simpleproxy-config PRIVATE
+    ${PROJECT_SOURCE_DIR}/include/proxy_config
+)
 target_link_libraries(simpleproxy-config PRIVATE simpleproxycore ${MYSQL_LIBS})
 set_target_properties(simpleproxy-config PROPERTIES BUILD_RPATH "$ORIGIN")
-
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CPACK_PACKAGE_NAME "simpleproxy")

@@ -1,8 +1,7 @@
-#include "./proxy_config/commands.h"
+#include "./commands.h"
 #include "./db/user.h"
 #include "./db/migration.h"
 #include "./util.h"
-#include "./auth.h"
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>

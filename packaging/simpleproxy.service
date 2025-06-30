@@ -5,7 +5,7 @@ After=network.target
 [Service]
 ExecStart=/usr/bin/simpleProxy
 Restart=always
-RestartSec=3
+RestartSec=10
 User=nobody
 Group=nogroup
 
