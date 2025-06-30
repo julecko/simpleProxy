@@ -1,6 +1,3 @@
 #!/bin/bash
 set -e
-systemctl daemon-reexec
-systemctl daemon-reload
-systemctl enable simpleproxy.service
-systemctl start simpleproxy.service
+

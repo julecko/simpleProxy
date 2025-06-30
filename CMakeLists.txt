@@ -22,7 +22,7 @@ execute_process(COMMAND mysql_config --libs
 separate_arguments(MYSQL_LIBS)
 
 # Core library (SHARED)
-add_library(simpleProxyCore SHARED
+add_library(simpleproxycore SHARED
     src/core/proxy.c
     src/core/util.c
     src/core/http.c
@@ -37,33 +37,33 @@ add_library(simpleProxyCore SHARED
 
 # Threads
 find_package(Threads REQUIRED)
-target_link_libraries(simpleProxyCore PUBLIC Threads::Threads)
+target_link_libraries(simpleproxycore PUBLIC Threads::Threads)
 
 # Apply MySQL flags to the core
-target_compile_options(simpleProxyCore PRIVATE ${MYSQL_CFLAGS})
-target_link_libraries(simpleProxyCore PRIVATE ${MYSQL_LIBS})
+target_compile_options(simpleproxycore PRIVATE ${MYSQL_CFLAGS})
+target_link_libraries(simpleproxycore PRIVATE ${MYSQL_LIBS})
 
 # Enable link-time optimization (interprocedural)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Debug/Release compiler flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_definitions(simpleProxyCore PRIVATE DEBUG_MODE=1)
-    target_compile_options(simpleProxyCore PRIVATE -g -O0)
+    target_compile_definitions(simpleproxycore PRIVATE DEBUG_MODE=1)
+    target_compile_options(simpleproxycore PRIVATE -g -O0)
 else()
-    target_compile_definitions(simpleProxyCore PRIVATE NDEBUG)
-    target_compile_options(simpleProxyCore PRIVATE -O3)
+    target_compile_definitions(simpleproxycore PRIVATE NDEBUG)
+    target_compile_options(simpleproxycore PRIVATE -O3)
 endif()
 
 # Executable 1: simpleProxy
-add_executable(simpleProxy src/main/main.c)
-target_link_libraries(simpleProxy PRIVATE simpleProxyCore)
-set_target_properties(simpleProxy PROPERTIES BUILD_RPATH "$ORIGIN")
+add_executable(simpleproxy src/main/main.c)
+target_link_libraries(simpleproxy PRIVATE simpleproxycore)
+set_target_properties(simpleproxy PROPERTIES BUILD_RPATH "$ORIGIN")
 
 # Executable 2: simpleProxyConfig
-add_executable(simpleProxyConfig src/proxy_config/proxy_config.c)
-target_link_libraries(simpleProxyConfig PRIVATE simpleProxyCore ${MYSQL_LIBS})
-set_target_properties(simpleProxyConfig PROPERTIES BUILD_RPATH "$ORIGIN")
+add_executable(simpleproxy-config src/proxy_config/proxy_config.c)
+target_link_libraries(simpleproxy-config PRIVATE simpleproxycore ${MYSQL_LIBS})
+set_target_properties(simpleproxy-config PROPERTIES BUILD_RPATH "$ORIGIN")
 
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -84,9 +84,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 
     include(CPack)
 
-    install(TARGETS simpleProxy DESTINATION bin)
-    install(TARGETS simpleProxyConfig DESTINATION bin)
-    install(TARGETS simpleProxyCore
+    install(TARGETS simpleproxy DESTINATION bin)
+    install(TARGETS simpleproxy-config DESTINATION bin)
+    install(TARGETS simpleproxycore
         LIBRARY DESTINATION lib
     )
 
