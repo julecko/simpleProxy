@@ -61,7 +61,10 @@ target_link_libraries(simpleproxy PRIVATE simpleproxycore)
 set_target_properties(simpleproxy PROPERTIES BUILD_RPATH "$ORIGIN")
 
 # Executable 2: simpleProxyConfig
-add_executable(simpleproxy-config src/proxy_config/proxy_config.c)
+add_executable(simpleproxy-config 
+    src/proxy_config/proxy_config.c
+    src/proxy_config/commands.c
+)
 target_link_libraries(simpleproxy-config PRIVATE simpleproxycore ${MYSQL_LIBS})
 set_target_properties(simpleproxy-config PROPERTIES BUILD_RPATH "$ORIGIN")
 
