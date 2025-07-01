@@ -8,6 +8,8 @@ Restart=always
 RestartSec=10
 User=nobody
 Group=nogroup
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

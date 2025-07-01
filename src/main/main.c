@@ -121,9 +121,12 @@ int main() {
 
     server_sock = create_server_socket(config.port, 5);
 
-    if (server_sock < 0) return EXIT_FAILURE;
+    if (server_sock < 0){
+        return EXIT_FAILURE;
+    }
 
     printf("Proxy server running on port %d...\n", config.port);
+    fflush(stdout);
 
     run_loop(&db, server_sock);
 

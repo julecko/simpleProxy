@@ -16,7 +16,7 @@ int create_server_socket(int port, int backlog) {
 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
-        exit(EXIT_FAILURE);
+        return -1;
     }
 
     address.sin_family = AF_INET;
@@ -26,16 +26,15 @@ int create_server_socket(int port, int backlog) {
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("bind failed");
         close(server_fd);
-        exit(EXIT_FAILURE);
+        return -1;
     }
 
     if (listen(server_fd, backlog) < 0) {
         perror("listen failed");
         close(server_fd);
-        exit(EXIT_FAILURE);
+        return -1;
     }
 
-    printf("Server listening on port %d...\n", port);
     return server_fd;
 }
 
