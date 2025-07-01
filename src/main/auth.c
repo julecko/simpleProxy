@@ -51,18 +51,19 @@ User *get_user_from_b64(const char* base64){
 }
 
 char *extract_basic_auth_b64(const char *request) {
-    const char *auth_header;
-    auth_header = strstr(request, "Proxy-Authorization:");
+    const char *auth_header = strstr(request, "Proxy-Authorization:");
     if (auth_header) {
         auth_header += strlen("Proxy-Authorization:");
     } else {
         auth_header = strstr(request, "Authorization:");
-    }
-    if (auth_header) {
-        auth_header += strlen("Authorization:");
+        if (auth_header) {
+            auth_header += strlen("Authorization:");
+        } else {
+            return NULL;
+        }
     }
 
-    while (isspace(*auth_header)) auth_header++;
+    while (isspace((unsigned char)*auth_header)) auth_header++;
 
     if (strncmp(auth_header, "Basic ", 6) != 0) {
         return NULL;
@@ -71,7 +72,12 @@ char *extract_basic_auth_b64(const char *request) {
     const char *b64_start = auth_header + 6;
 
     const char *end = strstr(b64_start, "\r\n");
-    if (!end) return NULL;
+    if (!end) {
+        end = strchr(b64_start, '\n');
+    }
+    if (!end) {
+        end = b64_start + strlen(b64_start);
+    }
 
     size_t len = end - b64_start;
     char *auth_b64 = malloc(len + 1);
@@ -82,6 +88,7 @@ char *extract_basic_auth_b64(const char *request) {
 
     return auth_b64;
 }
+
 int has_valid_auth(DB *db, const char *request) {
     char *auth_b64 = extract_basic_auth_b64(request);
     if (!auth_b64) return 0;
