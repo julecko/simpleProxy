@@ -15,9 +15,9 @@ int main(int argc, char *argv[]) {
         print_command_help(program_name);
         return EXIT_FAILURE;
     }
-    printf("%s\n", CONF_PATH);
+
     Config config = load_config(CONF_PATH);
-    if (check_config(&config)){
+    if (!check_config(&config)){
         fprintf(stderr, "Configuration file is incomplete or corrupted\n");
         return EXIT_FAILURE;
     }

@@ -108,7 +108,7 @@ int main() {
     register_signal_handler(cleanup);
 
     Config config = load_config(CONF_PATH);
-    if (check_config(&config)){
+    if (!check_config(&config)){
         fprintf(stderr, "Configuration file is incomplete or corrupted\n");
         return EXIT_FAILURE;
     }
@@ -121,12 +121,12 @@ int main() {
 
     server_sock = create_server_socket(8080, 5);
 
-    if (server_sock < 0) return 1;
+    if (server_sock < 0) return EXIT_FAILURE;
 
     printf("Proxy server running on port 8080...\n");
 
     run_loop(&db, server_sock);
 
     close(server_sock);
-    return 0;
+    return EXIT_SUCCESS;
 }

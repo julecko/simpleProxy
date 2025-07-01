@@ -32,10 +32,27 @@ void free_config(Config *config) {
 }
 
 bool check_config(const Config *config) {
-    return (!config->db_database || !config->db_user || !config->db_pass || !config->db_host || !config->db_port || !config->port);
+    return config->db_database && config->db_user && config->db_pass &&
+           config->db_host && config->db_port && config->port;
 }
 
-Config load_config(const char* filename) {
+void prepare_line(char *line){
+    char *src = line;
+    char *dst = line;
+
+    while (*src) {
+        if (*src == '#'){
+            break;
+        }
+        if (!isspace(*src)) {
+            *dst++ = *src;
+        }
+        src++;
+    }
+    *dst = '\0';
+}
+
+Config load_config(const char *filename) {
     Config config = create_default_config();
 
     FILE *file = fopen(filename, "r");
@@ -51,6 +68,8 @@ Config load_config(const char* filename) {
         if (line[0] == '\0' || line[0] == '#')
             continue;
 
+        prepare_line(line);
+        
         char *equal_sign = strchr(line, '=');
         if (!equal_sign) {
             fprintf(stderr, "Invalid line (no '=' found): %s\n", line);
@@ -60,15 +79,6 @@ Config load_config(const char* filename) {
         *equal_sign = '\0';
         char *key = line;
         char *value = equal_sign + 1;
-
-        while (isspace((unsigned char)*key)) key++;
-        while (isspace((unsigned char)*value)) value++;
-
-        char *end = key + strlen(key) - 1;
-        while (end > key && isspace((unsigned char)*end)) *end-- = '\0';
-
-        end = value + strlen(value) - 1;
-        while (end > value && isspace((unsigned char)*end)) *end-- = '\0';
 
         if (strcmp(key, "PORT") == 0) {
             config.port = atoi(value);
@@ -107,6 +117,7 @@ void save_config(const char *filename, Config *config) {
     fprintf(file, "DB_DATABASE=%s\n", config->db_database ? config->db_database : "");
     fprintf(file, "DB_USER=%s\n", config->db_user ? config->db_user : "");
     fprintf(file, "DB_PASS=%s\n", config->db_pass ? config->db_pass : "");
+    fprintf(file, "DB_HOST=%s\n", config->db_host ? config->db_host : "");
 
     fclose(file);
 }
