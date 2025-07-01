@@ -3,7 +3,7 @@ Description=SimpleProxy Server
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/simpleProxy
+ExecStart=/usr/bin/simpleproxy
 Restart=always
 RestartSec=10
 User=nobody

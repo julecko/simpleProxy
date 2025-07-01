@@ -6,12 +6,13 @@
 #include <ctype.h>
 #include <stdbool.h>
 
-#define MAX_LINE 256
+#define MAX_LINE 512
 
 void trim_newline(char *str) {
     size_t len = strlen(str);
-    if (len > 0 && (str[len-1] == '\n' || str[len-1] == '\r'))
-        str[len-1] = '\0';
+    while (len > 0 && (str[len-1] == '\n' || str[len-1] == '\r')) {
+        str[--len] = '\0';
+    }
 }
 
 Config create_default_config() {
@@ -120,4 +121,71 @@ void save_config(const char *filename, Config *config) {
     fprintf(file, "DB_HOST=%s\n", config->db_host ? config->db_host : "");
 
     fclose(file);
+}
+
+bool update_config_file(const char *filename, const Config *config) {
+    char temp_filename[MAX_LINE];
+    snprintf(temp_filename, sizeof(temp_filename), "%s.tmp", filename);
+
+    FILE *fin = fopen(filename, "r");
+    if (!fin) {
+        perror("Failed to open config file for reading");
+        return false;
+    }
+
+    FILE *fout = fopen(temp_filename, "w");
+    if (!fout) {
+        perror("Failed to open temp config file for writing");
+        fclose(fin);
+        return false;
+    }
+
+    char line[MAX_LINE];
+    while (fgets(line, sizeof(line), fin)) {
+        char original_line[MAX_LINE];
+        strncpy(original_line, line, MAX_LINE);
+
+        trim_newline(line);
+        prepare_line(line);
+
+        char *equal_sign = strchr(line, '=');
+        if (!equal_sign) {
+            fputs(original_line, fout);
+            continue;
+        }
+
+        *equal_sign = '\0';
+        char *key = line;
+        char *value = equal_sign + 1;
+
+        if (strcmp(key, "PORT") == 0) {
+            fprintf(fout, "PORT=%d\n", config->port);
+        } else if (strcmp(key, "DB_PORT") == 0) {
+            fprintf(fout, "DB_PORT=%d\n", config->db_port);
+        } else if (strcmp(key, "DB_HOST") == 0) {
+            fprintf(fout, "DB_HOST=%s\n", config->db_host ? config->db_host : "");
+        } else if (strcmp(key, "DB_DATABASE") == 0) {
+            fprintf(fout, "DB_DATABASE=%s\n", config->db_database ? config->db_database : "");
+        } else if (strcmp(key, "DB_USER") == 0) {
+            fprintf(fout, "DB_USER=%s\n", config->db_user ? config->db_user : "");
+        } else if (strcmp(key, "DB_PASS") == 0) {
+            fprintf(fout, "DB_PASS=%s\n", config->db_pass ? config->db_pass : "");
+        } else {
+            fputs(original_line, fout);
+        }
+    }
+
+    fclose(fin);
+    fclose(fout);
+
+    if (remove(filename) != 0) {
+        perror("Failed to delete original config file");
+        return false;
+    }
+    if (rename(temp_filename, filename) != 0) {
+        perror("Failed to rename temp file to config file");
+        return false;
+    }
+
+    return true;
 }

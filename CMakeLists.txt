@@ -74,6 +74,7 @@ set_target_properties(simpleproxy PROPERTIES BUILD_RPATH "$ORIGIN")
 add_executable(simpleproxy-config
     src/proxy_config/proxy_config.c
     src/proxy_config/commands.c
+    src/proxy_config/setup.c
 )
 
 target_include_directories(simpleproxy-config PRIVATE
@@ -106,7 +107,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         LIBRARY DESTINATION lib
     )
 
-    install(FILES ${CMAKE_SOURCE_DIR}/packaging/config.ini DESTINATION etc/simpleproxy)
+    install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.conf DESTINATION /etc/simpleproxy)
 
     install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.service DESTINATION lib/systemd/system)
 

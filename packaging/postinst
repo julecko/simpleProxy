@@ -1,3 +1,7 @@
 #!/bin/bash
 set -e
 
+
+echo -e "\nInstalation successful"
+echo "Run \`sudo simpleproxy-config setup\` to configure simpleproxy."
+echo "Then run \`sudo systemctl start simpleproxy.service\` to start the service."

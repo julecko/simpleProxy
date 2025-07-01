@@ -12,8 +12,9 @@ typedef struct Config {
     char* db_pass;
 } Config;
 
+Config create_default_config();
 bool check_config(const Config *config);
 Config load_config(const char *filename);
-void save_config(const char *filename, Config *config);
+bool update_config_file(const char *filename, const Config *config);
 
 #endif

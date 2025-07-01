@@ -5,5 +5,3 @@
 #else
 #define CONF_PATH "/etc/simpleproxy/simpleproxy.conf"
 #endif
-
-#define CONF_PATH_TEMP CONF_PATH ".temp"

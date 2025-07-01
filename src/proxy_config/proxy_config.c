@@ -15,6 +15,12 @@ int main(int argc, char *argv[]) {
         print_command_help(program_name);
         return EXIT_FAILURE;
     }
+    const char *cmd = argv[1];
+
+    if (strcmp(cmd, "setup") == 0) {
+        int result = COMMANDS[0].func(argc, argv, (DB*)NULL);
+        return result;
+    }
 
     Config config = load_config(CONF_PATH);
     if (!check_config(&config)){
@@ -28,7 +34,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    const char *cmd = argv[1];
     for (int i = 0; i < NUM_COMMANDS; ++i) {
         if (strcmp(cmd, COMMANDS[i].name) == 0) {
             int result = COMMANDS[i].func(argc, argv, &db);

@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <termios.h>
 #include <unistd.h>
+#include <stdbool.h>
+#include <ctype.h>
 
 int parse_host_port(const char *request, char *host, int *port) {
     const char *host_header = strstr(request, "\nHost:");
@@ -154,4 +156,30 @@ char *get_password(const char *prompt) {
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
     printf("\n");
     return password;
+}
+
+bool get_input(char *buffer, size_t buffer_len, const char *prompt) {
+    printf("%s", prompt);
+    fflush(stdout);
+
+    if (!fgets(buffer, buffer_len, stdin)) {
+        return false;
+    } else {
+        buffer[strcspn(buffer, "\n")] = '\0';
+    }
+
+    return true;
+}
+
+bool is_all_digits(const char *str) {
+    if (!str || *str == '\0')
+        return false;
+
+    while (*str) {
+        if (!isdigit((unsigned char)*str)) {
+            return false;
+        }
+        str++;
+    }
+    return true;
 }
