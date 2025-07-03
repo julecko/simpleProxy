@@ -27,19 +27,21 @@ int https_connect_to_target(ClientState *state) {
     server_addr.sin_port = htons(state->port);
     memcpy(&server_addr.sin_addr, he->h_addr_list[0], he->h_length);
 
-    int ret = connect(state->target_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
-    if (ret < 0 && errno != EINPROGRESS) {
-        perror("connect");
-        close(state->target_fd);
-        state->target_fd = -1;
-        return -1;
+    if (connect(state->target_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        if (errno == EINPROGRESS) {
+            return 0;
+        } else {
+            perror("connect");
+            close(state->target_fd);
+            state->target_fd = -1;
+            return -1;
+        }
     }
 
-    state->state = FORWARDING;
     const char *response = "HTTP/1.1 200 Connection Established\r\n\r\n";
     send(state->client_fd, response, strlen(response), 0);
 
-    return 0;
+    return 1;
 }
 
 int https_forward(ClientState *state) {

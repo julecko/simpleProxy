@@ -12,7 +12,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-#define MAX_CONNECTIONS 20
+#define MAX_CONNECTIONS 1024
 
 int server_sock = -1;
 ClientState *clients[MAX_CONNECTIONS] = {0};
@@ -56,6 +56,14 @@ int find_free_slot() {
     return -1;
 }
 
+size_t count_free_slots() {
+    size_t counter = 0;
+    for (int i = 0; i < MAX_CONNECTIONS; i++) {
+        if (!clients[i]) counter++;
+    }
+    return counter;
+}
+
 void run_loop(DB *db) {
     set_nonblocking(server_sock);
     
@@ -89,6 +97,7 @@ void run_loop(DB *db) {
                     handle_client(db, clients[i]);
                     free_client_state(clients[i]);
                     clients[i] = NULL;
+                    printf("Free slots %ld\n", count_free_slots());
                 }
             }
         }

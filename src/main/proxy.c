@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <time.h>
 #include <fcntl.h>
+#include <sys/select.h>
 
 int create_server_socket(int port, int backlog) {
     int server_fd;
@@ -100,8 +101,6 @@ static int read_request_nonblocking(ClientState *state) {
     return 0;
 }
 
-// === STATE HANDLERS ===
-
 void handle_reading_request(DB *db, ClientState *state) {
     int result = read_request_nonblocking(state);
     if (result < 0) {
@@ -123,7 +122,7 @@ void handle_authenticating(DB *db, ClientState *state) {
         }
 
         printf("Connecting to host=%s port=%d\n", state->host, state->port);
-        state->state = CONNECTING_TO_TARGET;
+        state->state = INITIALIZE_CONNECTION;
     } else {
         printf("Authentication failed or missing\n");
         send_proxy_auth_required(state->client_fd);
@@ -131,15 +130,47 @@ void handle_authenticating(DB *db, ClientState *state) {
     }
 }
 
-void handle_connecting(DB *db, ClientState *state) {
+void handle_initialize_connection(DB *db, ClientState *state) {
     int result = state->is_https
         ? https_connect_to_target(state)
         : http_connect_to_target(state);
 
-    if (result == -1) {
-        state->state = CLOSING;
-    } else if (result == 1) {
-        state->state = FORWARDING;
+    switch (result) {
+    case -1:
+        state->state=CLOSING;
+        break;
+    case 0:
+        state->state=CONNECTING;
+        break;
+    case 1:
+        state->state=FORWARDING;
+        break;
+    default:
+        perror("Undefined result from handle initializing of connection");
+        break;
+    }
+}
+
+void handle_connecting(DB *db, ClientState *state) {
+    fd_set write_fds;
+    FD_ZERO(&write_fds);
+    FD_SET(state->target_fd, &write_fds);
+    struct timeval tv = {0, 0};
+
+    int ret = select(state->target_fd + 1, NULL, &write_fds, NULL, &tv);
+    if (ret > 0 && FD_ISSET(state->target_fd, &write_fds)) {
+        int err = 0;
+        socklen_t len = sizeof(err);
+        if (getsockopt(state->target_fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0 || err != 0) {
+            fprintf(stderr, "connect failed: %s\n", strerror(err ? err : errno));
+            close(state->target_fd);
+            state->target_fd = -1;
+            state->state = CLOSING;
+        } else {
+            state->state = FORWARDING;
+        }
+    } else {
+        // still connecting, keep state as CONNECTING
     }
 }
 
@@ -161,8 +192,8 @@ typedef void (*StateHandler)(DB *, ClientState *);
 static StateHandler state_handlers[] = {
     [READING_REQUEST] = handle_reading_request,
     [AUTHENTICATING] = handle_authenticating,
+    [INITIALIZE_CONNECTION] = handle_initialize_connection,
     [CONNECTING] = handle_connecting,
-    [CONNECTING_TO_TARGET] = handle_connecting,
     [FORWARDING] = handle_forwarding,
     [CLOSING] = handle_closing,
 };
