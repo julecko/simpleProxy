@@ -22,6 +22,13 @@ int create_server_socket(int port, int backlog) {
         return -1;
     }
 
+    int opt = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+        perror("setsockopt(SO_REUSEADDR) failed");
+        close(server_fd);
+        return -1;
+    }
+
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
@@ -59,7 +66,7 @@ static int read_request_nonblocking(ClientState *state) {
         state->request_capacity = new_capacity;
     }
 
-    ssize_t n = recv(state->client_fd, state->request_buffer + state->request_len, 
+    ssize_t n = recv(state->client_fd, state->request_buffer + state->request_len,
                      state->request_capacity - state->request_len, 0);
     if (n < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -93,70 +100,89 @@ static int read_request_nonblocking(ClientState *state) {
     return 0;
 }
 
-void handle_client(DB *db, ClientState *state) {
-    switch (state->state) {
-        case READING_REQUEST: {
-            int result = read_request_nonblocking(state);
-            if (result < 0) {
-                state->state = CLOSING;
-                return;
-            }
-            if (result == 1) {
-                state->state = AUTHENTICATING;
-            }
-            break;
-        }
-        case AUTHENTICATING: {
-            if (has_valid_auth(db, state->request_buffer)) {
-                printf("Authentication successful\n");
-                if (strncmp(state->request_buffer, "CONNECT ", 8) == 0) {
-                    state->is_https = 1;
-                }
-                if (parse_host_port(state->request_buffer, state->host, &state->port) != 0) {
-                    printf("Failed to parse Host header\n");
-                    state->state = CLOSING;
-                    return;
-                }
-                printf("Connecting to host=%s port=%d\n", state->host, state->port);
-                state->state = CONNECTING_TO_TARGET;
-            } else {
-                printf("Authentication failed or missing\n");
-                send_proxy_auth_required(state->client_fd);
+// === STATE HANDLERS ===
 
-                state->state = CLOSING;
-            }
-            break;
-        }
-        case CONNECTING_TO_TARGET: {
-            if (state->is_https) {
-                if (https_connect_to_target(state) != 0) {
-                    state->state = CLOSING;
-                    return;
-                }
-            } else {
-                if (http_connect_to_target(state) != 0) {
-                    state->state = CLOSING;
-                    return;
-                }
-            }
-            break;
-        }
-        case FORWARDING: {
-            if (state->is_https) {
-                if (https_forward(state) != 0) {
-                    state->state = CLOSING;
-                    return;
-                }
-            } else {
-                if (http_forward(state) != 0) {
-                    state->state = CLOSING;
-                    return;
-                }
-            }
-            break;
-        }
-        case CLOSING:
-            // cleanup elsewhere
-            break;
+void handle_reading_request(DB *db, ClientState *state) {
+    int result = read_request_nonblocking(state);
+    if (result < 0) {
+        state->state = CLOSING;
+    } else if (result == 1) {
+        state->state = AUTHENTICATING;
     }
 }
+
+void handle_authenticating(DB *db, ClientState *state) {
+    if (has_valid_auth(db, state->request_buffer)) {
+        printf("Authentication successful\n");
+        state->is_https = strncmp(state->request_buffer, "CONNECT ", 8) == 0;
+
+        if (parse_host_port(state->request_buffer, state->host, &state->port) != 0) {
+            printf("Failed to parse Host header\n");
+            state->state = CLOSING;
+            return;
+        }
+
+        printf("Connecting to host=%s port=%d\n", state->host, state->port);
+        state->state = CONNECTING_TO_TARGET;
+    } else {
+        printf("Authentication failed or missing\n");
+        send_proxy_auth_required(state->client_fd);
+        state->state = CLOSING;
+    }
+}
+
+void handle_connecting(DB *db, ClientState *state) {
+    int result = state->is_https
+        ? https_connect_to_target(state)
+        : http_connect_to_target(state);
+
+    if (result == -1) {
+        state->state = CLOSING;
+    } else if (result == 1) {
+        state->state = FORWARDING;
+    }
+}
+
+void handle_forwarding(DB *db, ClientState *state) {
+    int result = state->is_https
+        ? https_forward(state)
+        : http_forward(state);
+
+    if (result != 0) {
+        state->state = CLOSING;
+    }
+}
+
+void handle_closing(DB *db, ClientState *state) {
+    // Cleanup is handled elsewhere.
+    printf("Closing connection for fd %d\n", state->client_fd);
+}
+
+// === DISPATCH TABLE ===
+
+typedef void (*StateHandler)(DB *, ClientState *);
+
+static StateHandler state_handlers[] = {
+    [READING_REQUEST] = handle_reading_request,
+    [AUTHENTICATING] = handle_authenticating,
+    [CONNECTING] = handle_connecting,
+    [CONNECTING_TO_TARGET] = handle_connecting,
+    [FORWARDING] = handle_forwarding,
+    [CLOSING] = handle_closing,
+};
+
+// === MAIN CLIENT HANDLER ===
+
+void handle_client(DB *db, ClientState *state) {
+    if (state->state >= 0 && state->state < sizeof(state_handlers)/sizeof(state_handlers[0])) {
+        StateHandler handler = state_handlers[state->state];
+        if (handler) {
+            handler(db, state);
+        } else {
+            fprintf(stderr, "[WARN] No handler for state %d\n", state->state);
+        }
+    } else {
+        fprintf(stderr, "[ERROR] Invalid state %d\n", state->state);
+    }
+}
+    

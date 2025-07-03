@@ -35,7 +35,6 @@ User *get_user_from_b64(const char* base64){
         free(password);
         return NULL;
     }
-    printf("%s%s\n", username, password);
 
     User *user = malloc(sizeof(User));
     if (!user) {

@@ -11,6 +11,7 @@ typedef enum {
     READING_REQUEST,
     AUTHENTICATING,
     CONNECTING_TO_TARGET,
+    CONNECTING,
     FORWARDING,
     CLOSING
 } ClientStateEnum;

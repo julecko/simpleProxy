@@ -1,7 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define _POSIX_C_SOURCE 200809L
+#define GNU_SOURCE
 
 #ifdef DEBUG_MODE
 #define CONF_PATH "./packaging/simpleproxy.conf"
