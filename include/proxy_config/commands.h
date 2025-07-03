@@ -1,5 +1,5 @@
-#ifndef COMMANDS_H
-#define COMMANDS_H
+#ifndef P_CONFIG_COMMANDS_H
+#define P_CONFIG_COMMANDS_H
 
 #include "./db/db.h"
 #include <stddef.h>

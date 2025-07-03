@@ -1,5 +1,5 @@
-#ifndef SETUP_H
-#define SETUP_H
+#ifndef P_CONFIG_SETUP_H
+#define P_CONFIG_SETUP_H
 
 #include <stddef.h>
 

@@ -1,5 +1,5 @@
-#ifndef HTTP_H
-#define HTTP_H
+#ifndef MAIN_HTTP_H
+#define MAIN_HTTP_H
 
 #include <stddef.h>
 

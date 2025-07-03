@@ -1,5 +1,5 @@
-#ifndef PROXY_H
-#define PROXY_H
+#ifndef MAIN_PROXY_H
+#define MAIN_PROXY_H
 
 #include "./db/db.h"
 

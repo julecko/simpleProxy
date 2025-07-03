@@ -1,5 +1,5 @@
-#ifndef AUTH_H
-#define AUTH_H
+#ifndef MAIN_AUTH_H
+#define MAIN_AUTH_H
 
 #include "./db/user.h"
 #include "./db/db.h"

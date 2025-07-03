@@ -40,6 +40,7 @@ target_link_libraries(simpleproxycore PRIVATE ${MYSQL_LIBS})
 
 # Include core headers globally for everything linking simpleproxycore
 target_include_directories(simpleproxycore PUBLIC
+    ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/include/core
 )
 
