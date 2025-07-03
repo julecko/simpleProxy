@@ -1,14 +1,17 @@
-#include "./util.h"
+#include "./proxy.h"
 #include "./http.h"
 #include "./https.h"
 #include "./auth.h"
-#include "./db/db.h"
+#include "./main/util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <errno.h>
+#include <time.h>
+#include <fcntl.h>
 
 int create_server_socket(int port, int backlog) {
     int server_fd;
@@ -44,80 +47,116 @@ int accept_connection(int server_sock) {
     return accept(server_sock, (struct sockaddr*)&client_addr, &addr_len);
 }
 
-static int read_request(int sock, char **headers_out, size_t *len_out) {
-    size_t capacity = 4096;
-    size_t len = 0;
-    char *buffer = malloc(capacity);
-    if (!buffer) return -1;
-
-    while (1) {
-        ssize_t n = recv(sock, buffer + len, capacity - len, 0);
-        if (n <= 0) {
-            perror("recv failed");
-            free(buffer);
+static int read_request_nonblocking(ClientState *state) {
+    if (state->request_len == state->request_capacity) {
+        size_t new_capacity = state->request_capacity * 2;
+        char *newbuf = realloc(state->request_buffer, new_capacity);
+        if (!newbuf) {
+            perror("realloc failed");
             return -1;
         }
-
-        len += n;
-        buffer[len] = '\0';
-
-        if (strstr(buffer, "\r\n\r\n") != NULL) {
-            break;
-        }
-
-        if (len == capacity) {
-            capacity *= 2;
-            char *newbuf = realloc(buffer, capacity);
-            if (!newbuf) {
-                perror("realloc failed");
-                free(buffer);
-                return -1;
-            }
-            buffer = newbuf;
-        }
+        state->request_buffer = newbuf;
+        state->request_capacity = new_capacity;
     }
 
-    *headers_out = buffer;
-    *len_out = len;
+    ssize_t n = recv(state->client_fd, state->request_buffer + state->request_len, 
+                     state->request_capacity - state->request_len, 0);
+    if (n < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return 0;
+        }
+        perror("recv failed");
+        return -1;
+    }
+    if (n == 0) {
+        if (state->waiting_for_auth_retry) {
+            if (time(NULL) > state->auth_retry_deadline) {
+                printf("Auth retry timed out\n");
+                return -1;
+            }
+            return 0;
+        }
+
+        if (state->request_len == 0) {
+            printf("Client closed connection\n");
+            return -1;
+        }
+        return 0;
+    }
+
+    state->request_len += n;
+    state->request_buffer[state->request_len] = '\0';
+
+    if (strstr(state->request_buffer, "\r\n\r\n") != NULL) {
+        return 1;
+    }
     return 0;
 }
 
+void handle_client(DB *db, ClientState *state) {
+    switch (state->state) {
+        case READING_REQUEST: {
+            int result = read_request_nonblocking(state);
+            if (result < 0) {
+                state->state = CLOSING;
+                return;
+            }
+            if (result == 1) {
+                state->state = AUTHENTICATING;
+            }
+            break;
+        }
+        case AUTHENTICATING: {
+            if (has_valid_auth(db, state->request_buffer)) {
+                printf("Authentication successful\n");
+                if (strncmp(state->request_buffer, "CONNECT ", 8) == 0) {
+                    state->is_https = 1;
+                }
+                if (parse_host_port(state->request_buffer, state->host, &state->port) != 0) {
+                    printf("Failed to parse Host header\n");
+                    state->state = CLOSING;
+                    return;
+                }
+                printf("Connecting to host=%s port=%d\n", state->host, state->port);
+                state->state = CONNECTING_TO_TARGET;
+            } else {
+                printf("Authentication failed or missing\n");
+                send_proxy_auth_required(state->client_fd);
 
-void handle_client(DB *db, int client_socket) {
-    char *request = NULL;
-    size_t request_len = 0;
-
-    if (read_request(client_socket, &request, &request_len) != 0) {
-        printf("Failed to read client request headers\n");
-        close(client_socket);
-        return;
+                state->state = CLOSING;
+            }
+            break;
+        }
+        case CONNECTING_TO_TARGET: {
+            if (state->is_https) {
+                if (https_connect_to_target(state) != 0) {
+                    state->state = CLOSING;
+                    return;
+                }
+            } else {
+                if (http_connect_to_target(state) != 0) {
+                    state->state = CLOSING;
+                    return;
+                }
+            }
+            break;
+        }
+        case FORWARDING: {
+            if (state->is_https) {
+                if (https_forward(state) != 0) {
+                    state->state = CLOSING;
+                    return;
+                }
+            } else {
+                if (http_forward(state) != 0) {
+                    state->state = CLOSING;
+                    return;
+                }
+            }
+            break;
+        }
+        case CLOSING:
+            // cleanup elsewhere
+            break;
     }
-
-    if (!has_valid_auth(db, request)) {
-        printf("Authentication failed or missing\n");
-        send_proxy_auth_required(client_socket);
-        free(request);
-        close(client_socket);
-        return;
-    }
-    // Extendable by parsing Content-Length and reading the body.
-
-    char host[256];
-    int port = 80;
-    if (parse_host_port(request, host, &port) != 0) {
-        printf("Failed to parse Host header\n");
-        free(request);
-        close(client_socket);
-        return;
-    }
-    printf("Forwarding request to host=%s port=%d\n", host, port);
-
-    if (strncmp(request, "CONNECT ", 8) == 0) {
-        handle_https_tunnel(client_socket, host, port);
-    }else{
-        forward_request(client_socket, host, port, request, request_len);
-    }
-
-    free(request);
-    close(client_socket);
 }

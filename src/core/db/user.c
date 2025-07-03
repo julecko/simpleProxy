@@ -1,5 +1,5 @@
 #include "./db/migration.h"
-#include "./util.h"
+#include "./core/util.h"
 #include "./db/user.h"
 #include <string.h>
 #include <stdio.h>

@@ -1,13 +1,12 @@
 #include "./db/db.h"
 #include "./db/user.h"
-#include "./util.h"
+#include "./core/util.h"
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <arpa/inet.h>
 
-#define AUTH_CREDENTIALS "Basic dXNlcjpwYXNz" //user:pass
 
 User *get_user_from_b64(const char* base64){
     if (!base64) return NULL;
@@ -36,6 +35,7 @@ User *get_user_from_b64(const char* base64){
         free(password);
         return NULL;
     }
+    printf("%s%s\n", username, password);
 
     User *user = malloc(sizeof(User));
     if (!user) {
@@ -135,6 +135,7 @@ void send_proxy_auth_required(int client_socket) {
         "HTTP/1.1 407 Proxy Authentication Required\r\n"
         "Proxy-Authenticate: Basic realm=\"Proxy\"\r\n"
         "Content-Length: 0\r\n"
+        "Connection: close\r\n"
         "\r\n";
     send(client_socket, response, strlen(response), 0);
 }

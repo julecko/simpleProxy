@@ -1,8 +1,9 @@
 #ifndef MAIN_HTTP_H
 #define MAIN_HTTP_H
 
-#include <stddef.h>
+#include "./client.h"
 
-int forward_request(int client_sock, const char *host, int port, const char *request, size_t request_len);
+int http_connect_to_target(ClientState *state);
+int http_forward(ClientState *state);
 
 #endif

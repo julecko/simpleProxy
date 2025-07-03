@@ -1,9 +1,9 @@
-#include "./common.h"
+#include "./core/common.h"
 #include "./commands.h"
 #include "./setup.h"
 #include "./db/user.h"
 #include "./db/migration.h"
-#include "./util.h"
+#include "./core/util.h"
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>

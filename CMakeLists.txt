@@ -63,6 +63,8 @@ add_executable(simpleproxy
     src/main/http.c
     src/main/https.c
     src/main/auth.c
+    src/main/client.c
+    src/main/util.c
 )
 
 target_include_directories(simpleproxy PRIVATE

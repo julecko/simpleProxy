@@ -1,7 +1,7 @@
-#include "./common.h"
+#include "./core/common.h"
 #include "./commands.h"
 #include "./db/db.h"
-#include "./util.h"
+#include "./core/util.h"
 #include "./config.h"
 #include <string.h>
 #include <stdlib.h>
