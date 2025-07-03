@@ -86,6 +86,7 @@ void run_loop(DB *db) {
             if (clients[i]) {
                 handle_client(db, clients[i]);
                 if (clients[i]->state == CLOSING) {
+                    handle_client(db, clients[i]);
                     free_client_state(clients[i]);
                     clients[i] = NULL;
                 }

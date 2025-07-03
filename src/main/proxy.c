@@ -147,18 +147,14 @@ void handle_forwarding(DB *db, ClientState *state) {
     int result = state->is_https
         ? https_forward(state)
         : http_forward(state);
-
     if (result != 0) {
         state->state = CLOSING;
     }
 }
 
 void handle_closing(DB *db, ClientState *state) {
-    // Cleanup is handled elsewhere.
     printf("Closing connection for fd %d\n", state->client_fd);
 }
-
-// === DISPATCH TABLE ===
 
 typedef void (*StateHandler)(DB *, ClientState *);
 
@@ -171,7 +167,6 @@ static StateHandler state_handlers[] = {
     [CLOSING] = handle_closing,
 };
 
-// === MAIN CLIENT HANDLER ===
 
 void handle_client(DB *db, ClientState *state) {
     if (state->state >= 0 && state->state < sizeof(state_handlers)/sizeof(state_handlers[0])) {
@@ -185,4 +180,3 @@ void handle_client(DB *db, ClientState *state) {
         fprintf(stderr, "[ERROR] Invalid state %d\n", state->state);
     }
 }
-    
