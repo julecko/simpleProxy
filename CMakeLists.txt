@@ -88,7 +88,7 @@ set_target_properties(simpleproxy-config PROPERTIES BUILD_RPATH "$ORIGIN")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CPACK_PACKAGE_NAME "simpleproxy")
-    set(CPACK_PACKAGE_VERSION "1.0.0")
+    set(CPACK_PACKAGE_VERSION "1.0.1")
     set(CPACK_GENERATOR "DEB")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Julecko <julecko@dilino.sk>")
     set(CPACK_DEBIAN_PACKAGE_SECTION "net")
@@ -96,11 +96,13 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CPACK_DEBIAN_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
     set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "Lightweight HTTP/HTTPS proxy with authentication")
 
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.28), libmysqlclient21, libssl3, libzstd1, libstdc++6, libgcc1")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.28), libmariadb3, libssl3, libzstd1, libstdc++6, libgcc1")
 
     set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
+        "${CMAKE_SOURCE_DIR}/packaging/conffiles"
         "${CMAKE_SOURCE_DIR}/packaging/postinst"
     )
+
 
     include(CPack)
 
@@ -110,8 +112,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         LIBRARY DESTINATION lib
     )
 
-    install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.conf DESTINATION /etc/simpleproxy)
-
     install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.service DESTINATION lib/systemd/system)
+    install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.conf DESTINATION /etc/simpleproxy)
 
 endif()

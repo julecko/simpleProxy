@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 #define INITIAL_CAPACITY 8
 #define LOAD_FACTOR 0.75
@@ -12,6 +13,7 @@ struct HashMap {
     Node **buckets;
     size_t capacity;
     size_t size;
+    pthread_mutex_t lock;
 };
 
 void *safe_malloc(size_t size) {
@@ -54,11 +56,13 @@ HashMap *hashmap_create(){
     map->capacity = INITIAL_CAPACITY;
     map->size = 0;
     map->buckets = safe_calloc(map->capacity, sizeof(Node *));
+    pthread_mutex_init(&map->lock, NULL);
     return map;
 };
 
 void hashmap_free(HashMap *map){
-    for (size_t i = 0;i < map->capacity; i++){
+    pthread_mutex_lock(&map->lock);
+    for (size_t i = 0; i < map->capacity; i++){
         Node *node = map->buckets[i];
         while (node){
             Node *next = node->next;
@@ -69,8 +73,11 @@ void hashmap_free(HashMap *map){
         }
     }
     free(map->buckets);
+    pthread_mutex_unlock(&map->lock);
+    pthread_mutex_destroy(&map->lock);
     free(map);
 }
+
 
 bool hashmap_contains(HashMap *map, const char *key){
     size_t index = hash(key, map->capacity);
@@ -108,7 +115,12 @@ static void hashmap_rehash(HashMap *map){
 }
 
 void hashmap_add(HashMap *map, const char *key, const void *value, size_t value_size){
-    if (hashmap_contains(map, key)) return;
+    pthread_mutex_lock(&map->lock);
+
+    if (hashmap_contains(map, key)) {
+        pthread_mutex_unlock(&map->lock);
+        return;
+    }
 
     if ((double)(map->size + 1) / map->capacity > LOAD_FACTOR){
         hashmap_rehash(map);
@@ -127,9 +139,14 @@ void hashmap_add(HashMap *map, const char *key, const void *value, size_t value_
     map->buckets[index] = new_node;
 
     map->size++;
+
+    pthread_mutex_unlock(&map->lock);
 }
 
+
 void hashmap_remove(HashMap *map, const char* key){
+    pthread_mutex_lock(&map->lock);
+
     size_t index = hash(key, map->capacity);
     Node *node = map->buckets[index];
     Node *prev = NULL;
@@ -152,6 +169,8 @@ void hashmap_remove(HashMap *map, const char* key){
         prev = node;
         node = node->next;
     }
+
+    pthread_mutex_unlock(&map->lock);
 }
 
 void *hashmap_get(HashMap *map, const char *key) {

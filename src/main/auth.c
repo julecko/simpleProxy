@@ -1,3 +1,4 @@
+#include "./collections/hashmap.h"
 #include "./db/db.h"
 #include "./db/user.h"
 #include "./core/util.h"
@@ -7,6 +8,7 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 
+#define CACHE_TTL 3600
 
 User *get_user_from_b64(const char* base64){
     if (!base64) return NULL;
@@ -89,18 +91,33 @@ char *extract_basic_auth_b64(const char *request) {
 }
 
 int has_valid_auth(DB *db, const char *request) {
+    static HashMap *map = NULL;
+    if (!map){
+        map = hashmap_create();
+    }
+
     char *auth_b64 = extract_basic_auth_b64(request);
     if (!auth_b64) return 0;
     
+    time_t *ttl_ptr = hashmap_get(map, auth_b64);
+    if (ttl_ptr){
+        if (*ttl_ptr > time(NULL)){
+            return 1;
+        } else {
+            hashmap_remove(map, auth_b64);
+        }
+    }
+
     User *request_user = get_user_from_b64(auth_b64);
-    free(auth_b64);
 
     if (!request_user){
+        free(auth_b64);
         return 0;
     }
 
     char *query = db_user_get(request_user->username);
     if (!query){
+        free(auth_b64);
         db_user_free(request_user);
         return 0;
     }
@@ -109,6 +126,7 @@ int has_valid_auth(DB *db, const char *request) {
     free(query);
 
     if (!res || res == (MYSQL_RES *)1) {
+        free(auth_b64);
         db_user_free(request_user);
         return 0;
     }
@@ -117,6 +135,7 @@ int has_valid_auth(DB *db, const char *request) {
     mysql_free_result(res);
 
     if (!valid_user){
+        free(auth_b64);
         db_user_free(request_user);
         return 0;
     }
@@ -125,6 +144,12 @@ int has_valid_auth(DB *db, const char *request) {
 
     db_user_free(request_user);
     db_user_free(valid_user);
+
+    if (valid){
+        time_t ttl = time(NULL) + CACHE_TTL;
+        hashmap_add(map, auth_b64, &ttl, sizeof(time_t));
+    }
+    free(auth_b64);
 
     return valid;
 }
