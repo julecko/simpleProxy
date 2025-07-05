@@ -1,3 +1,4 @@
+#include "./core/common.h"
 #include "./https.h"
 #include "./main/util.h"
 #include <stdio.h>
@@ -52,18 +53,55 @@ int https_forward(ClientState *state) {
     char buffer[4096];
     ssize_t n;
 
-    n = recv(state->client_fd, buffer, sizeof(buffer), 0);
-    if (n > 0) {
-        send(state->target_fd, buffer, n, 0);
-    } else if (n == 0 || (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
+    fd_set read_fds, write_fds;
+    FD_ZERO(&read_fds);
+    FD_ZERO(&write_fds);
+
+    int maxfd = (state->client_fd > state->target_fd) ? state->client_fd : state->target_fd;
+
+    FD_SET(state->client_fd, &read_fds);
+    FD_SET(state->target_fd, &read_fds);
+
+    struct timeval tv = {0, 0};
+
+    int ret = select(maxfd + 1, &read_fds, NULL, NULL, &tv);
+    if (ret < 0) {
+        perror("select");
         return -1;
     }
 
-    n = recv(state->target_fd, buffer, sizeof(buffer), 0);
-    if (n > 0) {
-        send(state->client_fd, buffer, n, 0);
-    } else if (n == 0 || (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
-        return -1;
+    if (FD_ISSET(state->client_fd, &read_fds)) {
+        while ((n = recv(state->client_fd, buffer, sizeof(buffer), 0)) > 0) {
+            ssize_t sent = 0;
+            while (sent < n) {
+                ssize_t s = send(state->target_fd, buffer + sent, n - sent, 0);
+                if (s < 0) {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+                    perror("send to target_fd");
+                    return -1;
+                }
+                sent += s;
+            }
+        }
+        if (n == 0) return -1;
+        if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK) return -1;
+    }
+
+    if (FD_ISSET(state->target_fd, &read_fds)) {
+        while ((n = recv(state->target_fd, buffer, sizeof(buffer), 0)) > 0) {
+            ssize_t sent = 0;
+            while (sent < n) {
+                ssize_t s = send(state->client_fd, buffer + sent, n - sent, 0);
+                if (s < 0) {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+                    perror("send to client_fd");
+                    return -1;
+                }
+                sent += s;
+            }
+        }
+        if (n == 0) return -1;
+        if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK) return -1;
     }
 
     return 0;

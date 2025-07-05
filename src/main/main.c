@@ -121,7 +121,7 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    server_sock = create_server_socket(config.port, 5);
+    server_sock = create_server_socket(config.port, 1024);
     if (server_sock < 0) {
         return EXIT_FAILURE;
     }
