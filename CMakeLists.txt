@@ -23,7 +23,7 @@ separate_arguments(MYSQL_LIBS)
 add_library(simpleproxycore SHARED
     src/core/util.c
     src/core/config.c
-    src/core/collections/hashset.c
+    src/core/collections/hashmap.c
     src/core/db/db.c
     src/core/db/migration.c
     src/core/db/user.c
