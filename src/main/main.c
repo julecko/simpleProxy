@@ -13,6 +13,7 @@
 #include <errno.h>
 
 #define MAX_CONNECTIONS 1024
+#define BACKLOG 128
 
 int server_sock = -1;
 ClientState *clients[MAX_CONNECTIONS] = {0};
@@ -121,7 +122,7 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    server_sock = create_server_socket(config.port, 1024);
+    server_sock = create_server_socket(config.port, BACKLOG);
     if (server_sock < 0) {
         return EXIT_FAILURE;
     }
