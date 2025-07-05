@@ -8,6 +8,11 @@
 #include <netdb.h>
 #include <fcntl.h>
 
+void https_send_established(ClientState *state){
+    const char *response = "HTTP/1.1 200 Connection Established\r\n\r\n";
+    send(state->client_fd, response, strlen(response), 0);
+}
+
 int https_connect_to_target(ClientState *state) {
     struct hostent *he = gethostbyname(state->host);
     if (!he) {
@@ -38,8 +43,7 @@ int https_connect_to_target(ClientState *state) {
         }
     }
 
-    const char *response = "HTTP/1.1 200 Connection Established\r\n\r\n";
-    send(state->client_fd, response, strlen(response), 0);
+    https_send_established(state);
 
     return 1;
 }

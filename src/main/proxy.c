@@ -167,6 +167,9 @@ void handle_connecting(DB *db, ClientState *state) {
             state->target_fd = -1;
             state->state = CLOSING;
         } else {
+            if (state->is_https){
+                https_send_established(state);
+            }
             state->state = FORWARDING;
         }
     } else {
