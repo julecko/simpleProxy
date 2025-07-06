@@ -23,12 +23,12 @@ typedef struct {
     char *request_buffer;
     size_t request_len;
     size_t request_capacity;
-    size_t request_sent_bytes;
+    size_t request_sent_already;
 
     char *response_buffer;
     size_t response_len;
     size_t response_capacity;
-    size_t response_sent_bytes;
+    size_t response_sent_already;
 
     ClientStateEnum state;
     char host[256];

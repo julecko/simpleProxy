@@ -49,59 +49,87 @@ int https_connect_to_target(ClientState *state) {
     return 1;
 }
 
-
 int receive_data(int fd, char *buffer, size_t capacity) {
     ssize_t received = recv(fd, buffer, capacity, 0);
     if (received == 0) {
-        // connection closed by peer
+        printf("[recv] fd=%d: connection closed by peer\n", fd);
         return -2;
     }
     if (received < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return 0; // no data available now
-        perror("recv");
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            printf("[recv] fd=%d: would block (EAGAIN)\n", fd);
+            return 0;
+        }
+        perror("[recv] error");
         return -1;
     }
+
+    printf("[recv] fd=%d: raw TLS data %zd bytes (not printed)\n", fd, received);
     return received;
 }
 
-int send_data(int fd, const char *buffer, size_t length) {
-    ssize_t sent = 0;
-    while (sent < (ssize_t)length) {
-        ssize_t s = send(fd, buffer + sent, length - sent, 0);
+int send_data(int fd, const char *buffer, size_t length, size_t *sent_offset) {
+    while (*sent_offset < length) {
+        ssize_t s = send(fd, buffer + *sent_offset, length - *sent_offset, 0);
         if (s < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                printf("Buffer for sending is full\n");
+                printf("[send] fd=%d: would block (EAGAIN), sent %zu/%zu bytes so far\n",
+                       fd, *sent_offset, length);
+                return 1;
             }
-            perror("send");
+            perror("[send] error");
             return -1;
         }
-        sent += s;
+        printf("[send] fd=%d: sent %zd bytes (total %zu/%zu)\n", fd, s, *sent_offset + s, length);
+        *sent_offset += s;
     }
-    // If sent < length, not all data sent, caller must handle this
-    // For now return 0 if no error, else -1
     return 0;
 }
 
-int forward_data(int from_fd, int to_fd, char *buffer, size_t buffer_capacity) {
-    int received = receive_data(from_fd, buffer, buffer_capacity);
-    if (received <= 0) {
-        return received;
+int forward_client_to_target(ClientState *state) {
+    if (state->request_sent_already < state->request_len) {
+        printf("[forward] Resuming sending client -> target, sent=%zu, len=%zu\n",
+               state->request_sent_already, state->request_len);
+        return send_data(state->target_fd, state->request_buffer,
+                         state->request_len, &state->request_sent_already);
     }
 
-    received = send_data(to_fd, buffer, received);
+    printf("[forward] Reading from client_fd=%d\n", state->client_fd);
+    int received = receive_data(state->client_fd,
+                                state->request_buffer, state->request_capacity);
+    if (received <= 0) return received;
 
-    return received;
-}
+    state->request_len = received;
+    state->request_sent_already = 0;
 
-int forward_client_to_target(ClientState *state) {
-    return forward_data(state->client_fd, state->target_fd,
-                            state->request_buffer, state->request_capacity);
+    printf("[forward] Forwarding %d bytes from client -> target_fd=%d\n",
+           received, state->target_fd);
+
+    return send_data(state->target_fd, state->request_buffer,
+                     state->request_len, &state->request_sent_already);
 }
 
 int forward_target_to_client(ClientState *state) {
-    return forward_data(state->target_fd, state->client_fd,
-                            state->response_buffer, state->response_capacity);
+    if (state->response_sent_already < state->response_len) {
+        printf("[forward] Resuming sending target -> client, sent=%zu, len=%zu\n",
+               state->response_sent_already, state->response_len);
+        return send_data(state->client_fd, state->response_buffer,
+                         state->response_len, &state->response_sent_already);
+    }
+
+    printf("[forward] Reading from target_fd=%d\n", state->target_fd);
+    int received = receive_data(state->target_fd,
+                                state->response_buffer, state->response_capacity);
+    if (received <= 0) return received;
+
+    state->response_len = received;
+    state->response_sent_already = 0;
+
+    printf("[forward] Forwarding %d bytes from target -> client_fd=%d\n",
+           received, state->client_fd);
+
+    return send_data(state->client_fd, state->response_buffer,
+                     state->response_len, &state->response_sent_already);
 }
 
 int https_forward(ClientState *state) {
@@ -115,29 +143,27 @@ int https_forward(ClientState *state) {
     struct timeval tv = {0, 0};
     int ret = select(maxfd + 1, &read_fds, NULL, NULL, &tv);
     if (ret < 0) {
-        perror("select");
+        perror("[select] error");
         return -1;
     }
 
     int status;
 
     if (FD_ISSET(state->client_fd, &read_fds)) {
+        printf("[https_forward] client_fd %d is ready to read\n", state->client_fd);
         status = forward_client_to_target(state);
-        switch (status){
-            case -1:
-                perror("HTTPS forwarding failed");
-            case -2:
-                return -1;
+        if (status == -1 || status == -2) {
+            printf("[https_forward] Error forwarding client -> target, status=%d\n", status);
+            return -1;
         }
     }
 
     if (FD_ISSET(state->target_fd, &read_fds)) {
+        printf("[https_forward] target_fd %d is ready to read\n", state->target_fd);
         status = forward_target_to_client(state);
-        switch (status){
-            case -1:
-                perror("HTTPS forwarding failed");
-            case -2:
-                return -1;
+        if (status == -1 || status == -2) {
+            printf("[https_forward] Error forwarding target -> client, status=%d\n", status);
+            return -1;
         }
     }
 
