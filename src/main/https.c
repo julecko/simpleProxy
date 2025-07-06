@@ -50,23 +50,28 @@ int https_connect_to_target(ClientState *state) {
 }
 
 
-int forward_data(int from_fd, int to_fd, char *buffer, size_t buffer_capacity) {
-    ssize_t received = recv(from_fd, buffer, buffer_capacity, 0);
+int receive_data(int fd, char *buffer, size_t capacity) {
+    ssize_t received = recv(fd, buffer, capacity, 0);
     if (received == 0) {
+        // connection closed by peer
         return -2;
     }
     if (received < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return 0;
+            return 0; // no data available now
         perror("recv");
         return -1;
     }
+    return received;
+}
 
+int send_data(int fd, const char *buffer, size_t length) {
     ssize_t sent = 0;
-    while (sent < received) {
-        ssize_t s = send(to_fd, buffer + sent, received - sent, 0);
+    while (sent < (ssize_t)length) {
+        ssize_t s = send(fd, buffer + sent, length - sent, 0);
         if (s < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // would block now, try later or break
                 break;
             }
             perror("send");
@@ -74,18 +79,9 @@ int forward_data(int from_fd, int to_fd, char *buffer, size_t buffer_capacity) {
         }
         sent += s;
     }
-
+    // If sent < length, not all data sent, caller must handle this
+    // For now return 0 if no error, else -1
     return 0;
-}
-
-int forward_client_to_target(ClientState *state) {
-    return forward_data(state->client_fd, state->target_fd,
-                            state->request_buffer, state->request_capacity);
-}
-
-int forward_target_to_client(ClientState *state) {
-    return forward_data(state->target_fd, state->client_fd,
-                            state->response_buffer, state->response_capacity);
 }
 
 
