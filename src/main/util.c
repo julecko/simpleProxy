@@ -44,3 +44,50 @@ int parse_host_port(const char *request, char *host, int *port) {
     strcpy(host, host_port);
     return 0;
 }
+
+int send_all(int fd, const char *buffer, size_t length) {
+    ssize_t sent = 0;
+    while (sent < (ssize_t)length) {
+        ssize_t s = send(fd, buffer + sent, length - sent, 0);
+        if (s < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+            return -1;
+        }
+        sent += s;
+    }
+    return sent;
+}
+
+ssize_t recv_into_buffer(int fd, char *buffer, size_t *len, size_t capacity) {
+    ssize_t n = recv(fd, buffer + *len, capacity - *len, 0);
+    if (n > 0) {
+        *len += n;
+        return n;
+    } else if (n == 0) {
+        // Connection closed by peer
+        return -2;
+    } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        return 0; // Not an error
+    } else {
+        return -1; // Real error
+    }
+}
+
+int send_from_buffer(int fd, char *buffer, size_t *len) {
+    ssize_t sent = 0;
+    while (sent < (ssize_t)(*len)) {
+        ssize_t s = send(fd, buffer + sent, *len - sent, 0);
+        if (s < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+            return -1;
+        }
+        sent += s;
+    }
+
+    if (sent > 0) {
+        memmove(buffer, buffer + sent, *len - sent);
+        *len -= sent;
+    }
+
+    return 0;
+}

@@ -88,7 +88,7 @@ set_target_properties(simpleproxy-config PROPERTIES BUILD_RPATH "$ORIGIN")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CPACK_PACKAGE_NAME "simpleproxy")
-    set(CPACK_PACKAGE_VERSION "1.0.1")
+    set(CPACK_PACKAGE_VERSION "1.0.2")
     set(CPACK_GENERATOR "DEB")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Julecko <julecko@dilino.sk>")
     set(CPACK_DEBIAN_PACKAGE_SECTION "net")
