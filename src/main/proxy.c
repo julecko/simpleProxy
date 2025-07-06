@@ -152,30 +152,29 @@ void handle_initialize_connection(DB *db, ClientState *state) {
 }
 
 void handle_connecting(DB *db, ClientState *state) {
-    fd_set write_fds;
-    FD_ZERO(&write_fds);
-    FD_SET(state->target_fd, &write_fds);
-    struct timeval tv = {0, 0};
+    int err = 0;
+    socklen_t len = sizeof(err);
 
-    int ret = select(state->target_fd + 1, NULL, &write_fds, NULL, &tv);
-    if (ret > 0 && FD_ISSET(state->target_fd, &write_fds)) {
-        int err = 0;
-        socklen_t len = sizeof(err);
-        if (getsockopt(state->target_fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0 || err != 0) {
-            fprintf(stderr, "connect failed: %s\n", strerror(err ? err : errno));
-            close(state->target_fd);
-            state->target_fd = -1;
-            state->state = CLOSING;
-        } else {
-            if (state->is_https){
-                https_send_established(state);
-            }
-            state->state = FORWARDING;
-        }
+    // Check if the socket is writable using non-blocking send
+    ssize_t test = send(state->target_fd, NULL, 0, 0);
+    if (test == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+        // Still connecting
+        return;
+    }
+
+    if (getsockopt(state->target_fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0 || err != 0) {
+        fprintf(stderr, "connect failed: %s\n", strerror(err ? err : errno));
+        close(state->target_fd);
+        state->target_fd = -1;
+        state->state = CLOSING;
     } else {
-        // still connecting, keep state as CONNECTING
+        if (state->is_https) {
+            https_send_established(state);
+        }
+        state->state = FORWARDING;
     }
 }
+
 
 void handle_forwarding(DB *db, ClientState *state) {
     int result = state->is_https
