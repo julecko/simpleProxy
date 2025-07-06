@@ -71,8 +71,7 @@ int send_data(int fd, const char *buffer, size_t length) {
         ssize_t s = send(fd, buffer + sent, length - sent, 0);
         if (s < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // would block now, try later or break
-                break;
+                printf("Buffer for sending is full\n");
             }
             perror("send");
             return -1;
@@ -84,6 +83,26 @@ int send_data(int fd, const char *buffer, size_t length) {
     return 0;
 }
 
+int forward_data(int from_fd, int to_fd, char *buffer, size_t buffer_capacity) {
+    int received = receive_data(from_fd, buffer, buffer_capacity);
+    if (received <= 0) {
+        return received;
+    }
+
+    received = send_data(to_fd, buffer, received);
+
+    return received;
+}
+
+int forward_client_to_target(ClientState *state) {
+    return forward_data(state->client_fd, state->target_fd,
+                            state->request_buffer, state->request_capacity);
+}
+
+int forward_target_to_client(ClientState *state) {
+    return forward_data(state->target_fd, state->client_fd,
+                            state->response_buffer, state->response_capacity);
+}
 
 int https_forward(ClientState *state) {
     fd_set read_fds;
