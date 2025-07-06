@@ -45,41 +45,64 @@ int http_connect_to_target(ClientState *state) {
     return 1;
 }
 
-int http_forward(ClientState *state) {
+int send_all(int fd, const char *buffer, size_t length) {
     ssize_t sent = 0;
-    while (sent < (ssize_t)state->request_len) {
-        ssize_t s = send(state->target_fd, state->request_buffer + sent, 
-                         state->request_len - sent, 0);
+    while (sent < (ssize_t)length) {
+        ssize_t s = send(fd, buffer + sent, length - sent, 0);
         if (s < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-            perror("send to server");
+            return -1;
+        }
+        sent += s;
+    }
+    return sent;
+}
+
+ssize_t recv_into_buffer(int fd, char *buffer, size_t *len, size_t capacity) {
+    ssize_t n = recv(fd, buffer + *len, capacity - *len, 0);
+    if (n > 0) {
+        *len += n;
+        return n;
+    } else if (n == 0 || (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
+        return -1;
+    }
+    return 0;
+}
+
+int send_from_buffer(int fd, char *buffer, size_t *len) {
+    ssize_t sent = 0;
+    while (sent < (ssize_t)(*len)) {
+        ssize_t s = send(fd, buffer + sent, *len - sent, 0);
+        if (s < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) break;
             return -1;
         }
         sent += s;
     }
 
-    ssize_t n = recv(state->target_fd, state->response_buffer + state->response_len, 
-                     state->response_capacity - state->response_len, 0);
-    if (n > 0) {
-        state->response_len += n;
-        ssize_t sent_to_client = 0;
-        while (sent_to_client < (ssize_t)state->response_len) {
-            ssize_t s = send(state->client_fd, state->response_buffer + sent_to_client, 
-                             state->response_len - sent_to_client, 0);
-            if (s < 0) {
-                if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-                return -1;
-            }
-            sent_to_client += s;
-        }
-        if (sent_to_client > 0) {
-            memmove(state->response_buffer, state->response_buffer + sent_to_client, 
-                    state->response_len - sent_to_client);
-            state->response_len -= sent_to_client;
-        }
-    } else if (n == 0 || (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
+    if (sent > 0) {
+        memmove(buffer, buffer + sent, *len - sent);
+        *len -= sent;
+    }
+
+    return 0;
+}
+
+int http_forward(ClientState *state) {
+    if (send_all(state->target_fd, state->request_buffer, state->request_len) < 0) {
+        perror("send to server");
         return -1;
     }
 
+    if (recv_into_buffer(state->target_fd, state->response_buffer, &state->response_len, state->response_capacity) < 0) {
+        perror("http receiving failed");
+        return -1;
+    }
+
+    if (send_from_buffer(state->client_fd, state->response_buffer, &state->response_len) < 0) {
+        perror("http sending failed");
+        return -1;
+    }
+    
     return 0;
 }

@@ -49,59 +49,81 @@ int https_connect_to_target(ClientState *state) {
     return 1;
 }
 
+
+int forward_data(int from_fd, int to_fd, char *buffer, size_t buffer_capacity) {
+    ssize_t received = recv(from_fd, buffer, buffer_capacity, 0);
+    if (received == 0) {
+        return -2;
+    }
+    if (received < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return 0;
+        perror("recv");
+        return -1;
+    }
+
+    ssize_t sent = 0;
+    while (sent < received) {
+        ssize_t s = send(to_fd, buffer + sent, received - sent, 0);
+        if (s < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break;
+            }
+            perror("send");
+            return -1;
+        }
+        sent += s;
+    }
+
+    return 0;
+}
+
+int forward_client_to_target(ClientState *state) {
+    return forward_data(state->client_fd, state->target_fd,
+                            state->request_buffer, state->request_capacity);
+}
+
+int forward_target_to_client(ClientState *state) {
+    return forward_data(state->target_fd, state->client_fd,
+                            state->response_buffer, state->response_capacity);
+}
+
+
 int https_forward(ClientState *state) {
-    char buffer[4096];
-    ssize_t n;
-
-    fd_set read_fds, write_fds;
+    fd_set read_fds;
     FD_ZERO(&read_fds);
-    FD_ZERO(&write_fds);
-
-    int maxfd = (state->client_fd > state->target_fd) ? state->client_fd : state->target_fd;
-
     FD_SET(state->client_fd, &read_fds);
     FD_SET(state->target_fd, &read_fds);
 
-    struct timeval tv = {0, 0};
+    int maxfd = (state->client_fd > state->target_fd) ? state->client_fd : state->target_fd;
 
+    struct timeval tv = {0, 0};
     int ret = select(maxfd + 1, &read_fds, NULL, NULL, &tv);
     if (ret < 0) {
         perror("select");
         return -1;
     }
 
+    int status;
+
     if (FD_ISSET(state->client_fd, &read_fds)) {
-        while ((n = recv(state->client_fd, buffer, sizeof(buffer), 0)) > 0) {
-            ssize_t sent = 0;
-            while (sent < n) {
-                ssize_t s = send(state->target_fd, buffer + sent, n - sent, 0);
-                if (s < 0) {
-                    if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-                    perror("send to target_fd");
-                    return -1;
-                }
-                sent += s;
-            }
+        status = forward_client_to_target(state);
+        switch (status){
+            case -1:
+                perror("HTTPS forwarding failed");
+            case -2:
+                return -1;
         }
-        if (n == 0) return -1;
-        if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK) return -1;
     }
 
     if (FD_ISSET(state->target_fd, &read_fds)) {
-        while ((n = recv(state->target_fd, buffer, sizeof(buffer), 0)) > 0) {
-            ssize_t sent = 0;
-            while (sent < n) {
-                ssize_t s = send(state->client_fd, buffer + sent, n - sent, 0);
-                if (s < 0) {
-                    if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-                    perror("send to client_fd");
-                    return -1;
-                }
-                sent += s;
-            }
+        status = forward_target_to_client(state);
+        switch (status){
+            case -1:
+                perror("HTTPS forwarding failed");
+            case -2:
+                return -1;
         }
-        if (n == 0) return -1;
-        if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK) return -1;
     }
 
     return 0;

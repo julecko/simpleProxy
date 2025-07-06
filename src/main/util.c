@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <sys/socket.h>
 
 void set_nonblocking(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
