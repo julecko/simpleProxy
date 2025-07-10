@@ -15,7 +15,6 @@ ClientState *create_client_state(int client_fd) {
     state->response_capacity = MAX_BUFFER_SIZE;
     state->state = READING_REQUEST;
     state->port = 80;
-    state->waiting_for_auth_retry = 0;
     
     if (!state->request_buffer || !state->response_buffer) {
         free(state->request_buffer);

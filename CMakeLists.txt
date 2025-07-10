@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(simpleProxy C)
 
+set(SIMPLEPROXY_VERSION "1.1.0")
+
 # Set default to Release if not specified
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -18,6 +20,9 @@ execute_process(COMMAND mysql_config --libs
     OUTPUT_VARIABLE MYSQL_LIBS
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 separate_arguments(MYSQL_LIBS)
+
+# Enable link-time optimization (interprocedural)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Core library (SHARED)
 add_library(simpleproxycore SHARED
@@ -45,9 +50,6 @@ target_include_directories(simpleproxycore PUBLIC
     ${PROJECT_SOURCE_DIR}/include/core
 )
 
-# Enable link-time optimization (interprocedural)
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-
 # Debug/Release compiler flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_definitions(DEBUG_MODE=1)
@@ -70,6 +72,9 @@ add_executable(simpleproxy
 target_include_directories(simpleproxy PRIVATE
     ${PROJECT_SOURCE_DIR}/include/main
 )
+
+target_compile_definitions(simpleproxycore PUBLIC VERSION=\"${SIMPLEPROXY_VERSION}\")
+
 target_link_libraries(simpleproxy PRIVATE simpleproxycore ${MYSQL_LIBS})
 set_target_properties(simpleproxy PROPERTIES BUILD_RPATH "$ORIGIN")
 
@@ -83,12 +88,13 @@ add_executable(simpleproxy-config
 target_include_directories(simpleproxy-config PRIVATE
     ${PROJECT_SOURCE_DIR}/include/proxy_config
 )
+
 target_link_libraries(simpleproxy-config PRIVATE simpleproxycore ${MYSQL_LIBS})
 set_target_properties(simpleproxy-config PROPERTIES BUILD_RPATH "$ORIGIN")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CPACK_PACKAGE_NAME "simpleproxy")
-    set(CPACK_PACKAGE_VERSION "1.0.2")
+    set(CPACK_PACKAGE_VERSION "${SIMPLEPROXY_VERSION}")
     set(CPACK_GENERATOR "DEB")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Julecko <julecko@dilino.sk>")
     set(CPACK_DEBIAN_PACKAGE_SECTION "net")

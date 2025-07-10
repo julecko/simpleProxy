@@ -1,4 +1,5 @@
-#include "./collections/hashmap.h"
+#include "./core/collections/hashmap.h"
+#include "./core/logger.h"
 #include "./db/db.h"
 #include "./db/user.h"
 #include "./core/util.h"
@@ -15,7 +16,7 @@ User *get_user_from_b64(const char* base64){
 
     char* decoded = base64_decode(base64, strlen(base64));
     if (!decoded){
-        fprintf(stderr, "Invalid decoded string\n");
+        log_error("Invalid decoded string");
         return NULL;
     }
 
@@ -32,7 +33,7 @@ User *get_user_from_b64(const char* base64){
     int matched = sscanf(decoded, "%255[^:]:%255s", username, password);
     free(decoded);
     if (matched != 2){
-        fprintf(stderr, "Username and password could be loaded after decoding");
+        log_error("Username and password could be loaded after decoding");
         free(username);
         free(password);
         return NULL;
@@ -102,6 +103,7 @@ int has_valid_auth(DB *db, const char *request) {
     time_t *ttl_ptr = hashmap_get(map, auth_b64);
     if (ttl_ptr){
         if (*ttl_ptr > time(NULL)){
+            log_debug("Cached credentials, access granted");
             return 1;
         } else {
             hashmap_remove(map, auth_b64);

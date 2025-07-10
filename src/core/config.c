@@ -1,10 +1,12 @@
 #include "./config.h"
+#include "./core/logger.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <errno.h>
 
 #define MAX_LINE 512
 
@@ -58,7 +60,7 @@ Config load_config(const char *filename) {
 
     FILE *file = fopen(filename, "r");
     if (!file) {
-        perror("Failed to open config file");
+        log_error("Failed to open config file: %s", strerror(errno));
         return config;
     }
 
@@ -73,7 +75,7 @@ Config load_config(const char *filename) {
         
         char *equal_sign = strchr(line, '=');
         if (!equal_sign) {
-            fprintf(stderr, "Invalid line (no '=' found): %s\n", line);
+            log_error("Invalid line (no '=' found): %s", line);
             continue;
         }
 
@@ -98,7 +100,7 @@ Config load_config(const char *filename) {
             free(config.db_pass);
             config.db_pass = strdup(value);
         } else {
-            fprintf(stderr, "Unknown config key: %s\n", key);
+            log_warn("Unknown config key: %s", key);
         }
     }
 
@@ -109,7 +111,7 @@ Config load_config(const char *filename) {
 void save_config(const char *filename, Config *config) {
     FILE *file = fopen(filename, "w");
     if (!file) {
-        perror("Failed to open config file for writing");
+        log_error("Failed to open config file for writing: %s", strerror(errno));
         return;
     }
 
@@ -129,13 +131,13 @@ bool update_config_file(const char *filename, const Config *config) {
 
     FILE *fin = fopen(filename, "r");
     if (!fin) {
-        perror("Failed to open config file for reading");
+        log_error("Failed to open config file for reading: %s", strerror(errno));
         return false;
     }
 
     FILE *fout = fopen(temp_filename, "w");
     if (!fout) {
-        perror("Failed to open temp config file for writing");
+        log_error("Failed to open temp config file for writing: %s", strerror(errno));
         fclose(fin);
         return false;
     }
@@ -179,11 +181,11 @@ bool update_config_file(const char *filename, const Config *config) {
     fclose(fout);
 
     if (remove(filename) != 0) {
-        perror("Failed to delete original config file");
+        log_error("Failed to delete original config file: %s", strerror(errno));
         return false;
     }
     if (rename(temp_filename, filename) != 0) {
-        perror("Failed to rename temp file to config file");
+        log_error("Failed to rename temp file to config file: %s", strerror(errno));
         return false;
     }
 

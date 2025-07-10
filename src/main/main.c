@@ -1,4 +1,6 @@
 #include "./core/common.h"
+#include "./core/logger.h"
+#include "./core/util.h"
 #include "./proxy.h"
 #include "./db/db.h"
 #include "./client.h"
@@ -75,20 +77,20 @@ void run_loop(DB *db) {
         if (client_sock >= 0) {
             int slot = find_free_slot();
             if (slot == -1) {
-                printf("Max connections reached, dropping client\n");
+                log_warn("Max connections reached, dropping client");
                 close(client_sock);
             } else {
                 set_nonblocking(client_sock);
                 clients[slot] = create_client_state(client_sock);
                 if (!clients[slot]) {
-                    printf("Failed to create client state\n");
+                    log_warn("Failed to create client state");
                     close(client_sock);
                 } else {
-                    printf("Accepted new client, slot %d\n", slot);
+                    log_debug("Accepted new client, slot %d", slot);
                 }
             }
         } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            perror("accept");
+            log_error("accept: %s", strerror(errno));
         }
 
         for (int i = 0; i < MAX_CONNECTIONS; i++) {
@@ -98,7 +100,7 @@ void run_loop(DB *db) {
                     handle_client(db, clients[i]);
                     free_client_state(clients[i]);
                     clients[i] = NULL;
-                    printf("Free slots %ld\n", count_free_slots());
+                    log_debug("Free slots %ld", count_free_slots());
                 }
             }
         }
@@ -107,18 +109,24 @@ void run_loop(DB *db) {
     }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    if (check_print_version(argc, argv)) {
+        return EXIT_SUCCESS;
+    }
+
     register_signal_handler(cleanup);
+
+    logger_init(stdout, stderr, LOG_DEBUG, 0);
 
     Config config = load_config(CONF_PATH);
     if (!check_config(&config)) {
-        fprintf(stderr, "Configuration file is incomplete or corrupted\n");
+        log_error("Configuration file is incomplete or corrupted\n");
         return EXIT_FAILURE;
     }
 
     DB db;
     if (!db_create(&db, &config)) {
-        fprintf(stderr, "Failed to connect to database.\n");
+        log_error("Failed to connect to database.");
         return EXIT_FAILURE;
     }
 
@@ -127,7 +135,7 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    printf("Proxy server running on port %d...\n", config.port);
+    log_info("Proxy server running on port %d...", config.port);
     fflush(stdout);
 
     run_loop(&db);

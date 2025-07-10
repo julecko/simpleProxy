@@ -1,18 +1,19 @@
 #include "./db/db.h"
 #include "./config.h"
+#include "./core/logger.h"
 #include <stdio.h>
 #include <pthread.h>
 
 bool db_create(DB *db, Config *config) {
     db->conn = mysql_init(NULL);
     if (db->conn == NULL) {
-        fprintf(stderr, "mysql_init() failed\n");
+        log_error("mysql_init() failed");
         return false;
     }
 
     if (mysql_real_connect(db->conn, config->db_host, config->db_user, config->db_pass,
                            config->db_database, config->db_port, NULL, 0) == NULL) {
-        fprintf(stderr, "mysql_real_connect() failed:\nError: %s\n", mysql_error(db->conn));
+        log_error("mysql_real_connect() failed Error: %s", mysql_error(db->conn));
         mysql_close(db->conn);
         db->conn = NULL;
         return false;
@@ -26,7 +27,7 @@ MYSQL_RES *db_execute(DB *db, const char *query) {
     pthread_mutex_lock(&db->lock);
 
     if (mysql_query(db->conn, query)) {
-        fprintf(stderr, "Query failed: %s\n", mysql_error(db->conn));
+        log_error("Query failed: %s", mysql_error(db->conn));
         pthread_mutex_unlock(&db->lock);
         return NULL;
     }
@@ -48,7 +49,7 @@ bool db_check_connection(DB *db) {
 
 void db_print_query_result(MYSQL_RES *result) {
     if (!result) {
-        fprintf(stderr, "No results to print.\n");
+        log_warn("No results to print.");
         return;
     }
 

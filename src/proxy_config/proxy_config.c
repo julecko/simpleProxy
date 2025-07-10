@@ -1,4 +1,5 @@
 #include "./core/common.h"
+#include "./core/logger.h"
 #include "./commands.h"
 #include "./db/db.h"
 #include "./core/util.h"
@@ -9,6 +10,11 @@
 
 
 int main(int argc, char *argv[]) {
+    if (check_print_version(argc, argv)) {
+        return EXIT_SUCCESS;
+    }
+    
+    logger_init(stdout, stderr, LOG_DEBUG, LOG_FLAG_NO_LEVEL | LOG_FLAG_NO_TIMESTAMP);
     const char *program_name = get_program_name(argv[0]);
 
     if (argc < 2) {

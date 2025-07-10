@@ -1,3 +1,4 @@
+#include "./core/logger.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -16,7 +17,7 @@ int parse_host_port(const char *request, char *host, int *port) {
     if (!host_header)
         host_header = strstr(request, "\nhost:");
     if (!host_header) {
-        fprintf(stderr, "No Host header found\n");
+        log_error("No Host header found");
         return -1;
     }
 

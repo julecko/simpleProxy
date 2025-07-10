@@ -8,6 +8,9 @@
 #include <stdbool.h>
 #include <ctype.h>
 
+#ifndef VERSION
+#define VERSION "unknown"
+#endif
 
 char* base64_encode(const unsigned char *input, size_t len) {
     static const char b64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -149,4 +152,13 @@ bool is_all_digits(const char *str) {
         str++;
     }
     return true;
+}
+
+int check_print_version(int argc, char *argv[]) {
+    if (argc > 1 && (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0)) {
+        printf("simpleProxy version %s\n", VERSION);
+        return 1;
+    }
+    
+    return 0;
 }

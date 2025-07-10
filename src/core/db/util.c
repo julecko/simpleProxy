@@ -1,3 +1,4 @@
+#include "./core/logger.h"
 #include <mysql/mysql.h>
 #include <stdio.h>
 #include <string.h>
@@ -6,13 +7,14 @@ char *get_all_tables(MYSQL *conn) {
     if (mysql_query(conn, 
         "SELECT GROUP_CONCAT(CONCAT('`', table_name, '`') SEPARATOR ', ') "
         "FROM information_schema.tables WHERE table_schema = DATABASE();")) {
-        fprintf(stderr, "Failed to query tables: %s\n", mysql_error(conn));
+
+        log_error("Failed to query tables: %s", mysql_error(conn));
         return NULL;
     }
     
     MYSQL_RES *res = mysql_store_result(conn);
     if (!res) {
-        fprintf(stderr, "No result from table query\n");
+        log_error("No result from table query");
         return NULL;
     }
     

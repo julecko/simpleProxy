@@ -1,4 +1,5 @@
 #include "./proxy.h"
+#include "./core/logger.h"
 #include "./connection.h"
 #include "./auth.h"
 #include "./main/util.h"
@@ -18,13 +19,13 @@ int create_server_socket(int port, int backlog) {
     struct sockaddr_in address;
 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("socket failed");
+        log_error("socket failed: %s", strerror(errno));
         return -1;
     }
 
     int opt = 1;
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        perror("setsockopt(SO_REUSEADDR) failed");
+        log_error("setsockopt(SO_REUSEADDR) failed: %s", strerror(errno));
         close(server_fd);
         return -1;
     }
@@ -34,13 +35,13 @@ int create_server_socket(int port, int backlog) {
     address.sin_port = htons(port);
 
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("bind failed");
+        log_error("bind failed: %s", strerror(errno));
         close(server_fd);
         return -1;
     }
 
     if (listen(server_fd, backlog) < 0) {
-        perror("listen failed");
+        log_error("listen failed: %s", strerror(errno));
         close(server_fd);
         return -1;
     }
@@ -59,7 +60,7 @@ static int read_request_nonblocking(ClientState *state) {
         size_t new_capacity = state->request_capacity * 2;
         char *newbuf = realloc(state->request_buffer, new_capacity);
         if (!newbuf) {
-            perror("realloc failed");
+            log_error("realloc failed: %s", strerror(errno));
             return -1;
         }
         state->request_buffer = newbuf;
@@ -72,20 +73,12 @@ static int read_request_nonblocking(ClientState *state) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return 0;
         }
-        perror("recv failed");
+        log_error("recv failed: %s", strerror(errno));
         return -1;
     }
     if (n == 0) {
-        if (state->waiting_for_auth_retry) {
-            if (time(NULL) > state->auth_retry_deadline) {
-                printf("Auth retry timed out\n");
-                return -1;
-            }
-            return 0;
-        }
-
         if (state->request_len == 0) {
-            printf("Client closed connection\n");
+            log_debug("Client closed connection");
             return -1;
         }
         return 0;
@@ -111,19 +104,19 @@ void handle_reading_request(DB *db, ClientState *state) {
 
 void handle_authenticating(DB *db, ClientState *state) {
     if (has_valid_auth(db, state->request_buffer)) {
-        printf("Authentication successful\n");
+        log_debug("Authentication successful");
         state->is_https = strncmp(state->request_buffer, "CONNECT ", 8) == 0;
 
         if (parse_host_port(state->request_buffer, state->host, &state->port) != 0) {
-            printf("Failed to parse Host header\n");
+            log_warn("Failed to parse Host header");
             state->state = CLOSING;
             return;
         }
 
-        printf("Connecting to host=%s port=%d\n", state->host, state->port);
+        log_debug("Connecting to host=%s port=%d", state->host, state->port);
         state->state = INITIALIZE_CONNECTION;
     } else {
-        printf("Authentication failed or missing\n");
+        log_debug("Authentication failed or missing");
         send_proxy_auth_required(state->client_fd);
         state->state = CLOSING;
     }
@@ -144,7 +137,7 @@ void handle_initialize_connection(DB *db, ClientState *state) {
         state->state=FORWARDING;
         break;
     default:
-        perror("Undefined result from handle initializing of connection");
+        log_error("Undefined result from handle initializing of connection");
         break;
     }
 }
@@ -161,7 +154,7 @@ void handle_connecting(DB *db, ClientState *state) {
     }
 
     if (getsockopt(state->target_fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0 || err != 0) {
-        fprintf(stderr, "connect failed: %s\n", strerror(err ? err : errno));
+        log_error("connect failed: %s", strerror(err ? err : errno));
         close(state->target_fd);
         state->target_fd = -1;
         state->state = CLOSING;
@@ -184,7 +177,7 @@ void handle_forwarding(DB *db, ClientState *state) {
 }
 
 void handle_closing(DB *db, ClientState *state) {
-    printf("Closing connection for fd %d\n", state->client_fd);
+    log_debug("Closing connection for fd %d", state->client_fd);
 }
 
 typedef void (*StateHandler)(DB *, ClientState *);
@@ -205,9 +198,9 @@ void handle_client(DB *db, ClientState *state) {
         if (handler) {
             handler(db, state);
         } else {
-            fprintf(stderr, "[WARN] No handler for state %d\n", state->state);
+            log_error("[WARN] No handler for state %d", state->state);
         }
     } else {
-        fprintf(stderr, "[ERROR] Invalid state %d\n", state->state);
+        log_error("[ERROR] Invalid state %d", state->state);
     }
 }

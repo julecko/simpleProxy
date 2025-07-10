@@ -33,9 +33,6 @@ typedef struct {
     int port;
 
     int is_https;
-
-    int waiting_for_auth_retry;
-    time_t auth_retry_deadline;
 } ClientState;
 
 ClientState *create_client_state(int client_fd);

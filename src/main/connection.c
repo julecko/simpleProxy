@@ -1,4 +1,5 @@
 #include "client.h"
+#include "./core/logger.h"
 #include "./main/util.h"
 #include <stdio.h>
 #include <string.h>
@@ -19,7 +20,7 @@ void send_https_established(int client_fd) {
 int connection_connect(ClientState *state) {
     struct hostent *he = gethostbyname(state->host);
     if (!he) {
-        fprintf(stderr, "Could not resolve host: %s\n", state->host);
+        log_error("Could not resolve host: %s", state->host);
         return -1;
     }
 
@@ -40,7 +41,7 @@ int connection_connect(ClientState *state) {
         if (errno == EINPROGRESS) {
             return 0; // still connecting
         } else {
-            perror("connect");
+            log_error("connect: %s", strerror(errno));
             close(state->target_fd);
             state->target_fd = -1;
             return -1;
@@ -90,29 +91,30 @@ static int send_from_buffer(int fd, char *buffer, size_t *len) {
 }
 
 
-
 int connection_forward(ClientState *state) {
     fd_set read_fds, write_fds;
     FD_ZERO(&read_fds);
     FD_ZERO(&write_fds);
 
     // Always ready to send if we have data
-    if (state->request_len > 0)
+    if (state->request_len > 0) {
         FD_SET(state->target_fd, &write_fds);
-    else
+    } else {
         FD_SET(state->client_fd, &read_fds);
+    }
 
-    if (state->response_len > 0)
+    if (state->response_len > 0) {
         FD_SET(state->client_fd, &write_fds);
-    else
+    } else {
         FD_SET(state->target_fd, &read_fds);
+    }
 
     int maxfd = (state->client_fd > state->target_fd) ? state->client_fd : state->target_fd;
     struct timeval tv = {0, 0};
 
     int ready = select(maxfd + 1, &read_fds, &write_fds, NULL, &tv);
     if (ready < 0) {
-        perror("[select] error");
+        log_error("[select] error: %s", strerror(errno));
         return -1;
     }
 

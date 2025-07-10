@@ -1,4 +1,5 @@
 #include "./collections/hashmap.h"
+#include "./core/logger.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +20,7 @@ struct HashMap {
 void *safe_malloc(size_t size) {
     void *ptr = malloc(size);
     if (!ptr) {
-        fprintf(stderr, "Memory allocation failed. Exiting.\n");
+        log_error("Memory allocation failed. Exiting.");
         exit(EXIT_FAILURE);
     }
     return ptr;
@@ -28,7 +29,7 @@ void *safe_malloc(size_t size) {
 void *safe_calloc(size_t count, size_t size) {
     void *ptr = calloc(count, size);
     if (!ptr) {
-        fprintf(stderr, "Memory allocation failed. Exiting.\n");
+        log_error("Memory allocation failed. Exiting.");
         exit(EXIT_FAILURE);
     }
     return ptr;
@@ -37,7 +38,7 @@ void *safe_calloc(size_t count, size_t size) {
 char *safe_strdup(const char *s) {
     char *dup = strdup(s);
     if (!dup) {
-        fprintf(stderr, "Memory allocation failed. Exiting.\n");
+        log_error("Memory allocation failed. Exiting.");
         exit(EXIT_FAILURE);
     }
     return dup;
