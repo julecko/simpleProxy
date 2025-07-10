@@ -61,8 +61,7 @@ endif()
 add_executable(simpleproxy
     src/main/main.c
     src/main/proxy.c
-    src/main/http.c
-    src/main/https.c
+    src/main/connection.c
     src/main/auth.c
     src/main/client.c
     src/main/util.c

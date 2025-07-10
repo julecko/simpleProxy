@@ -11,7 +11,7 @@
 #include <arpa/inet.h>
 
 // Used only by HTTPS
-static void send_https_established(int client_fd) {
+void send_https_established(int client_fd) {
     const char *response = "HTTP/1.1 200 Connection Established\r\n\r\n";
     send(client_fd, response, strlen(response), 0);
 }
@@ -49,12 +49,13 @@ int connection_connect(ClientState *state) {
 
     if (state->is_https) {
         send_https_established(state->client_fd);
+        state->request_len = 0;
     }
 
     return 1;
 }
 
-ssize_t recv_into_buffer(int fd, char *buffer, size_t *len, size_t capacity) {
+static ssize_t recv_into_buffer(int fd, char *buffer, size_t *len, size_t capacity) {
     ssize_t n = recv(fd, buffer + *len, capacity - *len, 0);
     if (n > 0) {
         *len += n;
@@ -69,7 +70,7 @@ ssize_t recv_into_buffer(int fd, char *buffer, size_t *len, size_t capacity) {
     }
 }
 
-int send_from_buffer(int fd, char *buffer, size_t *len) {
+static int send_from_buffer(int fd, char *buffer, size_t *len) {
     ssize_t sent = 0;
     while (sent < (ssize_t)(*len)) {
         ssize_t s = send(fd, buffer + sent, *len - sent, 0);

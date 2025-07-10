@@ -1,6 +1,5 @@
 #include "./proxy.h"
-#include "./http.h"
-#include "./https.h"
+#include "./connection.h"
 #include "./auth.h"
 #include "./main/util.h"
 #include <stdio.h>
@@ -131,9 +130,7 @@ void handle_authenticating(DB *db, ClientState *state) {
 }
 
 void handle_initialize_connection(DB *db, ClientState *state) {
-    int result = state->is_https
-        ? https_connect_to_target(state)
-        : http_connect_to_target(state);
+    int result = connection_connect(state);
 
     switch (result) {
     case -1:
@@ -143,6 +140,7 @@ void handle_initialize_connection(DB *db, ClientState *state) {
         state->state=CONNECTING;
         break;
     case 1:
+        state->response_len = 0;
         state->state=FORWARDING;
         break;
     default:
@@ -169,17 +167,17 @@ void handle_connecting(DB *db, ClientState *state) {
         state->state = CLOSING;
     } else {
         if (state->is_https) {
-            https_send_established(state);
+            send_https_established(state->client_fd);
+            state->request_len = 0;
         }
+        state->response_len = 0;
         state->state = FORWARDING;
     }
 }
 
 
 void handle_forwarding(DB *db, ClientState *state) {
-    int result = state->is_https
-        ? https_forward(state)
-        : http_forward(state);
+    int result = connection_forward(state);
     if (result != 0) {
         state->state = CLOSING;
     }
