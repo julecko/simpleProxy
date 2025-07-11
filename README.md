@@ -26,31 +26,31 @@ simpleProxy is a lightweight HTTP/HTTPS proxy server written in C. It supports f
 
    Example using wget (replace URL with actual latest .deb link):
 
-   wget https://github.com/julecko/simpleProxy/releases/download/<version>/simpleproxy-<version>-Linux.deb
+   `wget https://github.com/julecko/simpleProxy/releases/download/<version>/simpleproxy-<version>-Linux.deb`
 
 2. Install the downloaded .deb package:
 
-   sudo dpkg -i simpleproxy-<version>-Linux.deb
+   `sudo dpkg -i simpleproxy-<version>-Linux.deb`
 
 3. Fix any missing dependencies (if needed):
 
-   sudo apt-get install -f
+   `sudo apt-get install -f`
 
 4. Verify installation:
 
-   simpleproxy-conf --help
+   `simpleproxy-conf --help`
 
 5. Run initial setup:
 
-   sudo simpleproxy-conf setup
+   `sudo simpleproxy-conf setup`
 
 6. Check service status:
 
-   systemctl status simpleproxy.service
+   `systemctl status simpleproxy.service`
 
 7. Configure your system or browser to use the proxy:
 
-   http://127.0.0.1:3128
+   -> http://127.0.0.1:3128
 
 ## Notes:
 
