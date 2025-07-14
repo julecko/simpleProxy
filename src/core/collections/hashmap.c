@@ -100,16 +100,17 @@ static void hashmap_rehash(HashMap *map){
     map->buckets = safe_calloc(map->capacity, sizeof(Node *));
     map->size = 0;
 
-    for (size_t i = 0;i < old_capacity; i++){
+    for (size_t i = 0; i < old_capacity; i++){
         Node *node = old_buckets[i];
         while (node){
-            hashmap_add(map, node->key, node->value, node->value_size);
-            Node *temp = node;
-            node = node->next;
+            size_t index = hash(node->key, map->capacity);
 
-            free(temp->key);
-            free(temp->value);
-            free(temp);
+            Node *next = node->next;
+            node->next = map->buckets[index];
+            map->buckets[index] = node;
+            map->size++;
+
+            node = next;
         }
     }
     free(old_buckets);
@@ -165,6 +166,7 @@ void hashmap_remove(HashMap *map, const char* key){
             free(node);
 
             map->size--;
+            pthread_mutex_unlock(&map->lock);
             return;
         }
         prev = node;
@@ -175,14 +177,18 @@ void hashmap_remove(HashMap *map, const char* key){
 }
 
 void *hashmap_get(HashMap *map, const char *key) {
+    pthread_mutex_lock(&map->lock);
     size_t index = hash(key, map->capacity);
     Node *node = map->buckets[index];
     while (node) {
         if (strcmp(node->key, key) == 0) {
-            return node->value;
+            void *val = node->value;
+            pthread_mutex_unlock(&map->lock);
+            return val;
         }
         node = node->next;
     }
+    pthread_mutex_unlock(&map->lock);
     return NULL;
 }
 

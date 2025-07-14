@@ -13,12 +13,14 @@ typedef enum {
     INITIALIZE_CONNECTION,
     CONNECTING,
     FORWARDING,
-    CLOSING
+    CLOSING,
+    CLOSED
 } ClientStateEnum;
 
 typedef struct {
     int client_fd;
     int target_fd;
+    size_t slot;
 
     char *request_buffer;
     size_t request_len;
@@ -35,7 +37,7 @@ typedef struct {
     int is_https;
 } ClientState;
 
-ClientState *create_client_state(int client_fd);
+ClientState *create_client_state(int client_fd, size_t slot);
 void free_client_state(ClientState *state);
 
 

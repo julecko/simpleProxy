@@ -56,7 +56,7 @@ int accept_connection(int server_sock) {
 }
 
 static int read_request_nonblocking(ClientState *state) {
-    if (state->request_len == state->request_capacity) {
+    if (state->request_len == state->request_capacity - 1) {
         size_t new_capacity = state->request_capacity * 2;
         char *newbuf = realloc(state->request_buffer, new_capacity);
         if (!newbuf) {
@@ -113,7 +113,7 @@ void handle_authenticating(DB *db, ClientState *state) {
             return;
         }
 
-        log_debug("Connecting to host=%s port=%d", state->host, state->port);
+        log_debug("Connecting to host=%s port=%d on slot=%d", state->host, state->port, state->slot);
         state->state = INITIALIZE_CONNECTION;
     } else {
         log_debug("Authentication failed or missing");
@@ -177,7 +177,8 @@ void handle_forwarding(DB *db, ClientState *state) {
 }
 
 void handle_closing(DB *db, ClientState *state) {
-    log_debug("Closing connection for fd %d", state->client_fd);
+    free_client_state(state);
+    state->state = CLOSED;
 }
 
 typedef void (*StateHandler)(DB *, ClientState *);
@@ -198,9 +199,11 @@ void handle_client(DB *db, ClientState *state) {
         if (handler) {
             handler(db, state);
         } else {
-            log_error("[WARN] No handler for state %d", state->state);
+            log_error("No handler for state %d, closing connection", state->state);
+            state->state = CLOSING;
         }
     } else {
-        log_error("[ERROR] Invalid state %d", state->state);
+        log_error("Invalid state %d, closing connection", state->state);
+        state->state = CLOSING;
     }
 }

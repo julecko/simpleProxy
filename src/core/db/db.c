@@ -11,6 +11,9 @@ bool db_create(DB *db, Config *config) {
         return false;
     }
 
+    bool reconnect = 1;
+    mysql_options(db->conn, MYSQL_OPT_RECONNECT, &reconnect);
+
     if (mysql_real_connect(db->conn, config->db_host, config->db_user, config->db_pass,
                            config->db_database, config->db_port, NULL, 0) == NULL) {
         log_error("mysql_real_connect() failed Error: %s", mysql_error(db->conn));
