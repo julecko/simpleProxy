@@ -81,7 +81,7 @@ void run_loop(DB *db) {
                 close(client_sock);
             } else {
                 set_nonblocking(client_sock);
-                clients[slot] = create_client_state(client_sock);
+                clients[slot] = create_client_state(client_sock, slot);
                 if (!clients[slot]) {
                     log_warn("Failed to create client state");
                     close(client_sock);
@@ -89,23 +89,22 @@ void run_loop(DB *db) {
                     log_debug("Accepted new client, slot %d", slot);
                 }
             }
-        } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            log_error("accept: %s", strerror(errno));
+        } else if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+            log_error("accept failed: %s", strerror(errno));
         }
 
         for (int i = 0; i < MAX_CONNECTIONS; i++) {
             if (clients[i]) {
                 handle_client(db, clients[i]);
-                if (clients[i]->state == CLOSING) {
-                    handle_client(db, clients[i]);
-                    free_client_state(clients[i]);
+                if (clients[i]->state == CLOSED) {
                     clients[i] = NULL;
+                    log_debug("Closed connection for slot %d", i);
                     log_debug("Free slots %ld", count_free_slots());
                 }
             }
         }
 
-        usleep(1000);
+        usleep(10000);
     }
 }
 

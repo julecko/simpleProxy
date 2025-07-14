@@ -2,13 +2,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 
-ClientState *create_client_state(int client_fd) {
+ClientState *create_client_state(int client_fd, size_t slot) {
     ClientState *state = calloc(1, sizeof(ClientState));
     if (!state) return NULL;
     
     state->client_fd = client_fd;
     state->target_fd = -1;
+    state->slot = slot;
     state->request_buffer = malloc(MAX_BUFFER_SIZE);
     state->request_capacity = MAX_BUFFER_SIZE;
     state->response_buffer = malloc(MAX_BUFFER_SIZE);
@@ -16,6 +18,8 @@ ClientState *create_client_state(int client_fd) {
     state->state = READING_REQUEST;
     state->port = 80;
     
+    memset(state->host, 0, sizeof(state->host));
+
     if (!state->request_buffer || !state->response_buffer) {
         free(state->request_buffer);
         free(state->response_buffer);
