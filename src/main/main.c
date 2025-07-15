@@ -81,10 +81,10 @@ void run_loop(DB *db) {
     server_data->client_state = NULL;
     epoll_add_fd(epoll_fd, server_sock, EPOLLIN, server_data);
 
-    struct epoll_event events[MAX_EVENTS];
+    struct epoll_event events[MAX_CONNECTIONS * 3];
 
     while (1) {
-        int n_ready = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+        int n_ready = epoll_wait(epoll_fd, events, MAX_CONNECTIONS * 3, -1);
         if (n_ready == -1) {
             if (errno == EINTR) continue;
             die("epoll_wait failed: %s", strerror(errno));

@@ -3,6 +3,7 @@
 #include "./connection.h"
 #include "./auth.h"
 #include "./main/util.h"
+#include "./main/epoll.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,16 +94,18 @@ static int read_request_nonblocking(ClientState *state) {
     return 0;
 }
 
-void handle_reading_request(int epoll_fd, DB *db, ClientState *state) {
+void handle_reading_request(int epoll_fd, EpollData *data, DB *db) {
+    ClientState *state = data->client_state;
     int result = read_request_nonblocking(state);
     if (result < 0) {
-        state->state = CLOSING;
+        data->client_state->state = CLOSING;
     } else if (result == 1) {
-        state->state = AUTHENTICATING;
+        data->client_state->state = AUTHENTICATING;
     }
 }
 
-void handle_authenticating(int epoll_fd, DB *db, ClientState *state) {
+void handle_authenticating(int epoll_fd, EpollData *data, DB *db) {
+    ClientState *state = data->client_state;
     if (has_valid_auth(db, state->request_buffer)) {
         log_debug("Authentication successful");
         state->is_https = strncmp(state->request_buffer, "CONNECT ", 8) == 0;
@@ -122,19 +125,20 @@ void handle_authenticating(int epoll_fd, DB *db, ClientState *state) {
     }
 }
 
-void handle_initialize_connection(int epoll_fd, DB *db, ClientState *state) {
+void handle_initialize_connection(int epoll_fd, EpollData *data, DB *db) {
+    ClientState *state = data->client_state;
     int result = connection_connect(state);
 
     switch (result) {
     case -1:
-        state->state=CLOSING;
+        state->state = CLOSING;
         break;
     case 0:
-        state->state=CONNECTING;
+        state->state = CONNECTING;
         break;
     case 1:
         state->response_len = 0;
-        state->state=FORWARDING;
+        state->state = FORWARDING;
         break;
     default:
         log_error("Undefined result from handle initializing of connection");
@@ -142,7 +146,8 @@ void handle_initialize_connection(int epoll_fd, DB *db, ClientState *state) {
     }
 }
 
-void handle_connecting(int epoll_fd, DB *db, ClientState *state) {
+void handle_connecting(int epoll_fd, EpollData *data, DB *db) {
+    ClientState *state = data->client_state;
     int err = 0;
     socklen_t len = sizeof(err);
 
@@ -168,20 +173,21 @@ void handle_connecting(int epoll_fd, DB *db, ClientState *state) {
     }
 }
 
-
-void handle_forwarding(int epoll_fd, DB *db, ClientState *state) {
+void handle_forwarding(int epoll_fd, EpollData *data, DB *db) {
+    ClientState *state = data->client_state;
     int result = connection_forward(state);
     if (result != 0) {
         state->state = CLOSING;
     }
 }
 
-void handle_closing(int epoll_fd, DB *db, ClientState *state) {
+void handle_closing(int epoll_fd, EpollData *data, DB *db) {
+    ClientState *state = data->client_state;
     free_client_state(state);
     state->state = CLOSED;
 }
 
-typedef void (*StateHandler)(int epoll_fd, DB *, ClientState *);
+typedef void (*StateHandler)(int epoll_fd, EpollData *data, DB *db);
 
 static StateHandler state_handlers[] = {
     [READING_REQUEST] = handle_reading_request,
@@ -192,18 +198,17 @@ static StateHandler state_handlers[] = {
     [CLOSING] = handle_closing,
 };
 
-
-void handle_client(int epoll_fd, DB *db, ClientState *state) {
-    if (state->state >= 0 && state->state < sizeof(state_handlers)/sizeof(state_handlers[0])) {
-        StateHandler handler = state_handlers[state->state];
+void handle_client(int epoll_fd, EpollData *data, DB *db) {
+    if (data->client_state->state >= 0 && data->client_state->state < sizeof(state_handlers)/sizeof(state_handlers[0])) {
+        StateHandler handler = state_handlers[data->client_state->state];
         if (handler) {
-            handler(epoll_fd, db, state);
+            handler(epoll_fd, data, db);
         } else {
-            log_error("No handler for state %d, closing connection", state->state);
-            state->state = CLOSING;
+            log_error("No handler for state %d, closing connection", data->client_state->state);
+            data->client_state->state = CLOSING;
         }
     } else {
-        log_error("Invalid state %d, closing connection", state->state);
-        state->state = CLOSING;
+        log_error("Invalid state %d, closing connection", data->client_state->state);
+        data->client_state->state = CLOSING;
     }
 }

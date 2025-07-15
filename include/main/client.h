@@ -4,7 +4,6 @@
 #include <stddef.h>
 #include <time.h>
 
-#define MAX_EVENTS 1024
 #define MAX_BUFFER_SIZE 4096
 
 typedef enum {
