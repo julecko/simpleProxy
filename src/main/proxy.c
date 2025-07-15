@@ -93,7 +93,7 @@ static int read_request_nonblocking(ClientState *state) {
     return 0;
 }
 
-void handle_reading_request(DB *db, ClientState *state) {
+void handle_reading_request(int epoll_fd, DB *db, ClientState *state) {
     int result = read_request_nonblocking(state);
     if (result < 0) {
         state->state = CLOSING;
@@ -102,7 +102,7 @@ void handle_reading_request(DB *db, ClientState *state) {
     }
 }
 
-void handle_authenticating(DB *db, ClientState *state) {
+void handle_authenticating(int epoll_fd, DB *db, ClientState *state) {
     if (has_valid_auth(db, state->request_buffer)) {
         log_debug("Authentication successful");
         state->is_https = strncmp(state->request_buffer, "CONNECT ", 8) == 0;
@@ -122,7 +122,7 @@ void handle_authenticating(DB *db, ClientState *state) {
     }
 }
 
-void handle_initialize_connection(DB *db, ClientState *state) {
+void handle_initialize_connection(int epoll_fd, DB *db, ClientState *state) {
     int result = connection_connect(state);
 
     switch (result) {
@@ -142,7 +142,7 @@ void handle_initialize_connection(DB *db, ClientState *state) {
     }
 }
 
-void handle_connecting(DB *db, ClientState *state) {
+void handle_connecting(int epoll_fd, DB *db, ClientState *state) {
     int err = 0;
     socklen_t len = sizeof(err);
 
@@ -169,19 +169,19 @@ void handle_connecting(DB *db, ClientState *state) {
 }
 
 
-void handle_forwarding(DB *db, ClientState *state) {
+void handle_forwarding(int epoll_fd, DB *db, ClientState *state) {
     int result = connection_forward(state);
     if (result != 0) {
         state->state = CLOSING;
     }
 }
 
-void handle_closing(DB *db, ClientState *state) {
+void handle_closing(int epoll_fd, DB *db, ClientState *state) {
     free_client_state(state);
     state->state = CLOSED;
 }
 
-typedef void (*StateHandler)(DB *, ClientState *);
+typedef void (*StateHandler)(int epoll_fd, DB *, ClientState *);
 
 static StateHandler state_handlers[] = {
     [READING_REQUEST] = handle_reading_request,
@@ -193,11 +193,11 @@ static StateHandler state_handlers[] = {
 };
 
 
-void handle_client(DB *db, ClientState *state) {
+void handle_client(int epoll_fd, DB *db, ClientState *state) {
     if (state->state >= 0 && state->state < sizeof(state_handlers)/sizeof(state_handlers[0])) {
         StateHandler handler = state_handlers[state->state];
         if (handler) {
-            handler(db, state);
+            handler(epoll_fd, db, state);
         } else {
             log_error("No handler for state %d, closing connection", state->state);
             state->state = CLOSING;
