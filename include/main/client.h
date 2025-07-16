@@ -37,7 +37,7 @@ typedef struct {
 } ClientState;
 
 ClientState *create_client_state(int client_fd, size_t slot);
-void free_client_state(ClientState *state);
+void free_client_state(ClientState *state, int epoll_fd);
 
 
 #endif

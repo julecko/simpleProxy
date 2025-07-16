@@ -3,7 +3,7 @@
 #include "./connection.h"
 #include "./auth.h"
 #include "./main/util.h"
-#include "./main/epoll.h"
+#include "./main/epoll_util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -183,7 +183,7 @@ void handle_forwarding(int epoll_fd, EpollData *data, DB *db) {
 
 void handle_closing(int epoll_fd, EpollData *data, DB *db) {
     ClientState *state = data->client_state;
-    free_client_state(state);
+    free_client_state(state, epoll_fd);
     state->state = CLOSED;
 }
 

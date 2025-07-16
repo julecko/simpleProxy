@@ -1,11 +1,11 @@
 #include "./main/client.h"
-#include "./main/epoll.h"
+#include "./main/epoll_util.h"
 #include <sys/epoll.h>
 #include <errno.h>
 
 int epoll_add_fd(int epoll_fd, int fd, uint32_t events, EpollData *data) {
     struct epoll_event ev = {
-        .events = events | EPOLLET,
+        .events = events,
         .data.ptr = data
     };
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev) == -1) {
@@ -17,7 +17,7 @@ int epoll_add_fd(int epoll_fd, int fd, uint32_t events, EpollData *data) {
 
 int epoll_mod_fd(int epoll_fd, int fd, uint32_t events, EpollData *data) {
     struct epoll_event ev = {
-        .events = events | EPOLLET,
+        .events = events,
         .data.ptr = data
     };
     if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev) == -1) {

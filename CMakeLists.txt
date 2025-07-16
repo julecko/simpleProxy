@@ -67,6 +67,9 @@ add_executable(simpleproxy
     src/main/auth.c
     src/main/client.c
     src/main/util.c
+    src/main/epoll_util.c
+    src/main/loop_handlers.c
+    src/main/timeout.c
 )
 
 target_include_directories(simpleproxy PRIVATE

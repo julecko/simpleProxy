@@ -1,7 +1,8 @@
-#ifndef MAIN_EPOLL_H
-#define MAIN_EPOLL_H
+#ifndef MAIN_EPOLL_UTIL_H
+#define MAIN_EPOLL_UTIL_H
 
 #include "./main/client.h"
+#include <stdint.h>
 
 typedef enum {
     EPOLL_FD_LISTENER,
