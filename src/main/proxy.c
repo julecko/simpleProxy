@@ -281,10 +281,14 @@ static StateHandler state_handlers[] = {
 void handle_client(int epoll_fd, struct epoll_event event, DB *db) {
     EpollData *data = (EpollData *)event.data.ptr;
 
+    log_debug("State triggered: %d, %d, %d, %d, %d, %d", data->client_state->state, data->client_state->request_len, data->client_state->response_len, data->fd_type, event.events & EPOLLIN, event.events & EPOLLOUT);
+
     if (data->client_state->state >= 0 && data->client_state->state < sizeof(state_handlers)/sizeof(state_handlers[0])) {
         StateHandler handler = state_handlers[data->client_state->state];
         if (handler) {
-            reset_timer(data->timer_fd, TIMEOUT_SEC);
+            if (!data->client_state->request_len == 0 || !data->client_state->response_len == 0) {
+                reset_timer(data->timer_fd, TIMEOUT_SEC);
+            }
             handler(epoll_fd, event, db);
         } else {
             log_error("No handler for state %d, closing connection", data->client_state->state);
