@@ -1,6 +1,7 @@
 #include "client.h"
 #include "./core/logger.h"
 #include "./main/util.h"
+#include "./main/epoll_util.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -10,6 +11,7 @@
 #include <sys/time.h>
 #include <sys/select.h>
 #include <arpa/inet.h>
+#include <sys/epoll.h>
 
 // Used only by HTTPS
 void send_https_established(int client_fd) {
@@ -90,54 +92,40 @@ static int send_from_buffer(int fd, char *buffer, size_t *len) {
     return 0;
 }
 
+int connection_forward(int epoll_fd, struct epoll_event event) {
+    EpollData *data = (EpollData *)event.data.ptr;
+    ClientState *state = data->client_state;
+    int fd = event.data.fd;
+    uint32_t ev = event.events;
 
-int connection_forward(ClientState *state) {
-    fd_set read_fds, write_fds;
-    FD_ZERO(&read_fds);
-    FD_ZERO(&write_fds);
-
-    // Always ready to send if we have data
-    if (state->request_len > 0) {
-        FD_SET(state->target_fd, &write_fds);
-    } else {
-        FD_SET(state->client_fd, &read_fds);
-    }
-
-    if (state->response_len > 0) {
-        FD_SET(state->client_fd, &write_fds);
-    } else {
-        FD_SET(state->target_fd, &read_fds);
-    }
-
-    int maxfd = (state->client_fd > state->target_fd) ? state->client_fd : state->target_fd;
-    struct timeval tv = {0, 0};
-
-    int ready = select(maxfd + 1, &read_fds, &write_fds, NULL, &tv);
-    if (ready < 0) {
-        log_error("[select] error: %s", strerror(errno));
-        return -1;
-    }
+    bool is_client = (data->fd_type == EPOLL_FD_CLIENT);
+    bool is_target = (data->fd_type == EPOLL_FD_TARGET);
+    bool modified = false;
 
     // CLIENT → TARGET
-    if (FD_ISSET(state->target_fd, &write_fds)) {
-        if (send_from_buffer(state->target_fd, state->request_buffer, &state->request_len) < 0)
-            return -1;
+    if (is_client && (ev & EPOLLIN)) {
+        ssize_t r = recv_into_buffer(state->client_fd, state->request_buffer, &state->request_len, state->request_capacity);
+        if (r < 0) return -1;
+        modified = true;
     }
 
-    if (FD_ISSET(state->client_fd, &read_fds)) {
-        if (recv_into_buffer(state->client_fd, state->request_buffer, &state->request_len, state->request_capacity) < 0)
-            return -1;
+    if (is_target && (ev & EPOLLOUT) && state->request_len > 0) {
+        ssize_t s = send_from_buffer(state->target_fd, state->request_buffer, &state->request_len);
+        if (s < 0) return -1;
+        modified = true;
     }
 
     // TARGET → CLIENT
-    if (FD_ISSET(state->client_fd, &write_fds)) {
-        if (send_from_buffer(state->client_fd, state->response_buffer, &state->response_len) < 0)
-            return -1;
+    if (is_target && (ev & EPOLLIN)) {
+        ssize_t r = recv_into_buffer(state->target_fd, state->response_buffer, &state->response_len, state->response_capacity);
+        if (r < 0) return -1;
+        modified = true;
     }
 
-    if (FD_ISSET(state->target_fd, &read_fds)) {
-        if (recv_into_buffer(state->target_fd, state->response_buffer, &state->response_len, state->response_capacity) < 0)
-            return -1;
+    if (is_client && (ev & EPOLLOUT) && state->response_len > 0) {
+        ssize_t s = send_from_buffer(state->client_fd, state->response_buffer, &state->response_len);
+        if (s < 0) return -1;
+        modified = true;
     }
 
     return 0;

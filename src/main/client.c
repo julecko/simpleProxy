@@ -44,4 +44,5 @@ void free_client_state(ClientState *state, int epoll_fd) {
     free(state->request_buffer);
     free(state->response_buffer);
     free(state);
+    state = NULL;
 }

@@ -3,6 +3,7 @@
 
 #include "./main/client.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum {
     EPOLL_FD_LISTENER,
@@ -20,5 +21,7 @@ typedef struct {
 int epoll_add_fd(int epoll_fd, int fd, uint32_t events, EpollData *data);
 int epoll_mod_fd(int epoll_fd, int fd, uint32_t events, EpollData *data);
 int epoll_del_fd(int epoll_fd, int fd);
+EpollData *epoll_create_data(EpollFDType type, ClientState *state, int timer_fd);
+bool epoll_register_client_with_timer(int epoll_fd, int client_fd, uint32_t events);
 
 #endif

@@ -4,8 +4,11 @@
 #include "./epoll_util.h"
 #include "./db/db.h"
 
+#include <stdint.h>
+#include <sys/epoll.h>
+
 void handle_listener_event(int epoll_fd, int server_sock);
 void handle_timer_event(int epoll_fd, EpollData *data);
-void handle_client_event(int epoll_fd, EpollData *data, DB *db);
+void handle_client_event(int epoll_fd, struct epoll_event event, DB *db);
 
 #endif

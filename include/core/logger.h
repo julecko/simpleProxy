@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 typedef enum {
+    LOG_DEBUG_ULTRA,
     LOG_DEBUG,
     LOG_INFO,
     LOG_WARN,
@@ -26,6 +27,12 @@ void logger_close();
 #define log_debug(...) logger_log_normal(LOG_DEBUG, __VA_ARGS__)
 #else
 #define log_debug(...) ((void)0)
+#endif
+
+#ifdef DEBUG_MODE
+#define log_debug_ultra(...) logger_log_normal(LOG_DEBUG, __VA_ARGS__)
+#else
+#define log_debug_ultra(...) ((void)0)
 #endif
 
 #define log_info(...)  logger_log_normal(LOG_INFO,  __VA_ARGS__)

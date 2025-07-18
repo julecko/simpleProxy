@@ -1,5 +1,6 @@
 #include "./proxy.h"
 #include "./core/logger.h"
+#include "./main/timeout.h"
 #include "./connection.h"
 #include "./auth.h"
 #include "./main/util.h"
@@ -14,6 +15,54 @@
 #include <time.h>
 #include <fcntl.h>
 #include <sys/select.h>
+#include <sys/epoll.h>
+
+// Forward declaration
+static void handle_reading_request(int epoll_fd, struct epoll_event event, DB *db);
+static void handle_authenticating(int epoll_fd, struct epoll_event event, DB *db);
+static void handle_initialize_connection(int epoll_fd, struct epoll_event event, DB *db);
+static void handle_connecting(int epoll_fd, struct epoll_event event, DB *db);
+static void handle_forwarding(int epoll_fd, struct epoll_event event, DB *db);
+static void handle_closing(int epoll_fd, struct epoll_event event, DB *db);
+
+static bool register_forwarding_fds(int epoll_fd, ClientState *state, int timer_fd) {
+    EpollData *client_data = epoll_create_data(EPOLL_FD_CLIENT, state, timer_fd);
+    if (!client_data) {
+        log_error("Failed to allocate EpollData for client");
+        return false;
+    }
+
+    struct epoll_event client_ev = {
+        .events = EPOLLIN | EPOLLOUT,
+        .data.ptr = client_data
+    };
+
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, state->client_fd, &client_ev) == -1) {
+        log_error("epoll_ctl MOD client_fd failed: %s", strerror(errno));
+        free(client_data);
+        return false;
+    }
+
+    EpollData *target_data = epoll_create_data(EPOLL_FD_TARGET, state, timer_fd);
+    if (!target_data) {
+        log_error("Failed to allocate EpollData for target");
+        return false;
+    }
+
+    struct epoll_event target_ev = {
+        .events = EPOLLIN | EPOLLOUT,
+        .data.ptr = target_data
+    };
+
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, state->target_fd, &target_ev) == -1) {
+        log_error("epoll_ctl MOD target_fd failed: %s", strerror(errno));
+        free(target_data);
+        return false;
+    }
+
+    return true;
+}
+
 
 int create_server_socket(int port, int backlog) {
     int server_fd;
@@ -94,18 +143,25 @@ static int read_request_nonblocking(ClientState *state) {
     return 0;
 }
 
-void handle_reading_request(int epoll_fd, EpollData *data, DB *db) {
+static void handle_reading_request(int epoll_fd, struct epoll_event event, DB *db) {
+    EpollData *data = (EpollData *)event.data.ptr;
     ClientState *state = data->client_state;
+
     int result = read_request_nonblocking(state);
+
     if (result < 0) {
         data->client_state->state = CLOSING;
+        handle_client(epoll_fd, event, db);
     } else if (result == 1) {
         data->client_state->state = AUTHENTICATING;
+        handle_client(epoll_fd, event, db);
     }
 }
 
-void handle_authenticating(int epoll_fd, EpollData *data, DB *db) {
+static void handle_authenticating(int epoll_fd, struct epoll_event event, DB *db) {
+    EpollData *data = (EpollData *)event.data.ptr;
     ClientState *state = data->client_state;
+
     if (has_valid_auth(db, state->request_buffer)) {
         log_debug("Authentication successful");
         state->is_https = strncmp(state->request_buffer, "CONNECT ", 8) == 0;
@@ -118,76 +174,100 @@ void handle_authenticating(int epoll_fd, EpollData *data, DB *db) {
 
         log_debug("Connecting to host=%s port=%d on slot=%d", state->host, state->port, state->slot);
         state->state = INITIALIZE_CONNECTION;
+        handle_client(epoll_fd, event, db);
     } else {
         log_debug("Authentication failed or missing");
         send_proxy_auth_required(state->client_fd);
         state->state = CLOSING;
+        handle_client(epoll_fd, event, db);
     }
 }
 
-void handle_initialize_connection(int epoll_fd, EpollData *data, DB *db) {
+static void handle_initialize_connection(int epoll_fd, struct epoll_event event, DB *db) {
+    EpollData *data = (EpollData *)event.data.ptr;
     ClientState *state = data->client_state;
+
     int result = connection_connect(state);
 
-    switch (result) {
-    case -1:
+    if (result == -1) {
         state->state = CLOSING;
-        break;
-    case 0:
-        state->state = CONNECTING;
-        break;
-    case 1:
-        state->response_len = 0;
-        state->state = FORWARDING;
-        break;
-    default:
-        log_error("Undefined result from handle initializing of connection");
-        break;
-    }
-}
-
-void handle_connecting(int epoll_fd, EpollData *data, DB *db) {
-    ClientState *state = data->client_state;
-    int err = 0;
-    socklen_t len = sizeof(err);
-
-    // Check if the socket is writable using non-blocking send
-    ssize_t test = send(state->target_fd, NULL, 0, 0);
-    if (test == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-        // Still connecting
         return;
     }
 
-    if (getsockopt(state->target_fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0 || err != 0) {
-        log_error("connect failed: %s", strerror(err ? err : errno));
+    struct epoll_event ev = {0};
+    ev.events = EPOLLOUT;
+    ev.data.ptr = epoll_create_data(EPOLL_FD_TARGET, state, data->timer_fd);
+
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, state->target_fd, &ev) < 0) {
+        log_error("epoll_ctl ADD target_fd failed: %s", strerror(errno));
         close(state->target_fd);
-        state->target_fd = -1;
         state->state = CLOSING;
-    } else {
+        return;
+    }
+
+    if (result == 1) {
         if (state->is_https) {
             send_https_established(state->client_fd);
             state->request_len = 0;
         }
         state->response_len = 0;
         state->state = FORWARDING;
+
+        register_forwarding_fds(epoll_fd, state, data->timer_fd);
+    } else {
+        state->state = CONNECTING;
     }
 }
 
-void handle_forwarding(int epoll_fd, EpollData *data, DB *db) {
+static void handle_connecting(int epoll_fd, struct epoll_event event, DB *db) {
+    EpollData *data = (EpollData *)event.data.ptr;
     ClientState *state = data->client_state;
-    int result = connection_forward(state);
-    if (result != 0) {
+
+    int err = 0;
+    socklen_t len = sizeof(err);
+
+    if (getsockopt(state->target_fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0 || err != 0) {
+        log_error("connect failed: %s", strerror(err ? err : errno));
+        close(state->target_fd);
+        state->target_fd = -1;
         state->state = CLOSING;
+        handle_client(epoll_fd, event, db);
+        return;
+    }
+
+    if (state->is_https) {
+        send_https_established(state->client_fd);
+        state->request_len = 0;
+    }
+
+    state->response_len = 0;
+    state->state = FORWARDING;
+
+    register_forwarding_fds(epoll_fd, state, data->timer_fd);
+}
+
+static void handle_forwarding(int epoll_fd, struct epoll_event event, DB *db) {
+    EpollData *data = (EpollData *)event.data.ptr;
+    int result = connection_forward(epoll_fd, event);
+    if (result != 0) {
+        data->client_state->state = CLOSING;
     }
 }
 
-void handle_closing(int epoll_fd, EpollData *data, DB *db) {
+static void handle_closing(int epoll_fd, struct epoll_event event, DB *db) {
+    EpollData *data = (EpollData *)event.data.ptr;
     ClientState *state = data->client_state;
+
     free_client_state(state, epoll_fd);
+    if (data->timer_fd != -1) {
+        epoll_del_fd(epoll_fd, data->timer_fd);
+        close(data->timer_fd);
+    }
+
     state->state = CLOSED;
 }
 
-typedef void (*StateHandler)(int epoll_fd, EpollData *data, DB *db);
+typedef void (*StateHandler)(int epoll_fd, struct epoll_event event, DB *db);
 
 static StateHandler state_handlers[] = {
     [READING_REQUEST] = handle_reading_request,
@@ -198,15 +278,21 @@ static StateHandler state_handlers[] = {
     [CLOSING] = handle_closing,
 };
 
-void handle_client(int epoll_fd, EpollData *data, DB *db) {
+void handle_client(int epoll_fd, struct epoll_event event, DB *db) {
+    EpollData *data = (EpollData *)event.data.ptr;
+
     if (data->client_state->state >= 0 && data->client_state->state < sizeof(state_handlers)/sizeof(state_handlers[0])) {
         StateHandler handler = state_handlers[data->client_state->state];
         if (handler) {
-            handler(epoll_fd, data, db);
+            reset_timer(data->timer_fd, TIMEOUT_SEC);
+            handler(epoll_fd, event, db);
         } else {
             log_error("No handler for state %d, closing connection", data->client_state->state);
             data->client_state->state = CLOSING;
+            handle_client(epoll_fd, event, db);
         }
+    } else if (data->client_state->state == (sizeof(state_handlers)/sizeof(state_handlers[0]))) {
+        return;
     } else {
         log_error("Invalid state %d, closing connection", data->client_state->state);
         data->client_state->state = CLOSING;

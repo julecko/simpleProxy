@@ -101,7 +101,7 @@ void run_loop(DB *db) {
             } else if (data->fd_type == EPOLL_FD_TIMER) {
                 handle_timer_event(epoll_fd, data);
             } else {
-                handle_client_event(epoll_fd, data, db);
+                handle_client_event(epoll_fd, events[i], db);
             }
         }
     }
@@ -110,13 +110,13 @@ void run_loop(DB *db) {
 }
 
 int main(int argc, char *argv[]) {
-    if (check_print_version(argc, argv)) {
+    if (check_print_version(argc, argv)) {  
         return EXIT_SUCCESS;
     }
 
     register_signal_handler(cleanup);
 
-    logger_init(stdout, stderr, LOG_DEBUG, 0);
+    logger_init(stdout, stderr, LOG_DEBUG_ULTRA, 0);
 
     Config config = load_config(CONF_PATH);
     if (!check_config(&config)) {

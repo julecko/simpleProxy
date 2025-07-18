@@ -15,17 +15,18 @@ done
 BUILD_DIR="build/${BUILD_TYPE,,}"
 
 mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR"
+(
+  cd "$BUILD_DIR"
+  cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE ../..
+  make
 
-cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE ../..
-make
-
-if [ "$BUILD_TYPE" == "Release" ]; then
-  echo "Generating .deb package..."
-  cpack -G DEB
-fi
+  if [ "$BUILD_TYPE" == "Release" ]; then
+    echo "Generating .deb package..."
+    cpack -G DEB
+  fi
+)
 
 if [ "$RUN_EXEC" = true ]; then
-  echo "Running ./simpleProxy ($BUILD_TYPE build)"
-  ./simpleProxy
+  echo "Running ./simpleproxy ($BUILD_TYPE build)"
+  "./$BUILD_DIR/simpleproxy"
 fi

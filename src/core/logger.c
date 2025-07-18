@@ -9,6 +9,7 @@
 #define COLOR_CYAN    "\x1b[36m"
 
 static const char *level_names[] = {
+    COLOR_CYAN   "DEBUG ULTRA" COLOR_RESET,
     COLOR_CYAN   "DEBUG" COLOR_RESET,
     COLOR_GREEN  "INFO"  COLOR_RESET,
     COLOR_YELLOW "WARN"  COLOR_RESET,
