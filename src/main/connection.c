@@ -80,7 +80,7 @@ static ssize_t recv_into_buffer(int fd, char *buffer, size_t *len, size_t capaci
 static int send_from_buffer(int fd, char *buffer, size_t *len) {
     ssize_t sent = 0;
     while (sent < (ssize_t)(*len)) {
-        ssize_t s = send(fd, buffer + sent, *len - sent, 0);
+        ssize_t s = send(fd, buffer + sent, *len - sent, MSG_NOSIGNAL);
         if (s < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
             return -1;

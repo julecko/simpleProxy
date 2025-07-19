@@ -28,17 +28,3 @@ int create_timer_fd(int timeout_sec) {
 
     return tfd;
 }
-
-void reset_timer(int timer_fd, int timeout_sec) {
-    if (timer_fd == -1) return;
-
-    struct itimerspec its;
-    its.it_value.tv_sec = TIMEOUT_SEC;
-    its.it_value.tv_nsec = 0;
-    its.it_interval.tv_sec = 0;
-    its.it_interval.tv_nsec = 0;
-
-    if (timerfd_settime(timer_fd, 0, &its, NULL) == -1) {
-        log_error("Failed to reset timer: %s", strerror(errno));
-    }
-}

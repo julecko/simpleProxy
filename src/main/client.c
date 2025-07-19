@@ -36,18 +36,26 @@ ClientState *create_client_state(int client_fd, size_t slot) {
     return state;
 }
 
-void free_client_state(ClientState *state, int epoll_fd) {
-    if (!state) return;
+void free_client_state(ClientState **state_ptr, int epoll_fd) {
+    if (!state_ptr || !*state_ptr) return;
+
+    ClientState *state = *state_ptr;
+
     if (state->client_fd != -1) {
         epoll_del_fd(epoll_fd, state->client_fd);
         close(state->client_fd);
+        state->client_fd = -1;
     }
+
     if (state->target_fd != -1) {
         epoll_del_fd(epoll_fd, state->target_fd);
         close(state->target_fd);
+        state->target_fd = -1;
     }
+
     free(state->request_buffer);
     free(state->response_buffer);
     free(state);
-    state = NULL;
+
+    *state_ptr = NULL;
 }

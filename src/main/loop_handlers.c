@@ -19,25 +19,12 @@ void handle_listener_event(int epoll_fd, int server_sock) {
             break;
         }
 
-        epoll_register_client_with_timer(epoll_fd, client_sock, EPOLLIN);
+        epoll_register_client(epoll_fd, client_sock, EPOLLIN);
     }
 }
 
 void handle_timer_event(int epoll_fd, EpollData *data) {
-    log_debug("Client timed out");
-
-    uint64_t expirations;
-    if (read(data->timer_fd, &expirations, sizeof(expirations)) == -1) {
-        log_error("Failed to read timerfd: %s", strerror(errno));
-    }
-
-    if (data->client_state) {
-        free_client_state(data->client_state, epoll_fd);
-    }
-
-    epoll_del_fd(epoll_fd, data->timer_fd);
-    close(data->timer_fd);
-    free(data);
+    // ADD
 }
 
 void handle_client_event(int epoll_fd, struct epoll_event event, DB *db) {
@@ -48,9 +35,4 @@ void handle_client_event(int epoll_fd, struct epoll_event event, DB *db) {
     }
 
     handle_client(epoll_fd, event, db);
-
-    if (data->client_state->state == CLOSED) {
-        free(data);
-        log_debug("Closed connection");
-    }
 }

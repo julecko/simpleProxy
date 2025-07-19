@@ -25,8 +25,8 @@ static void handle_connecting(int epoll_fd, struct epoll_event event, DB *db);
 static void handle_forwarding(int epoll_fd, struct epoll_event event, DB *db);
 static void handle_closing(int epoll_fd, struct epoll_event event, DB *db);
 
-static bool register_forwarding_fds(int epoll_fd, ClientState *state, int timer_fd) {
-    EpollData *client_data = epoll_create_data(EPOLL_FD_CLIENT, state, timer_fd);
+static bool register_forwarding_fds(int epoll_fd, ClientState *state) {
+    EpollData *client_data = epoll_create_data(EPOLL_FD_CLIENT, state);
     if (!client_data) {
         log_error("Failed to allocate EpollData for client");
         return false;
@@ -43,7 +43,7 @@ static bool register_forwarding_fds(int epoll_fd, ClientState *state, int timer_
         return false;
     }
 
-    EpollData *target_data = epoll_create_data(EPOLL_FD_TARGET, state, timer_fd);
+    EpollData *target_data = epoll_create_data(EPOLL_FD_TARGET, state);
     if (!target_data) {
         log_error("Failed to allocate EpollData for target");
         return false;
@@ -196,7 +196,7 @@ static void handle_initialize_connection(int epoll_fd, struct epoll_event event,
 
     struct epoll_event ev = {0};
     ev.events = EPOLLOUT;
-    ev.data.ptr = epoll_create_data(EPOLL_FD_TARGET, state, data->timer_fd);
+    ev.data.ptr = epoll_create_data(EPOLL_FD_TARGET, state);
 
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, state->target_fd, &ev) < 0) {
         log_error("epoll_ctl ADD target_fd failed: %s", strerror(errno));
@@ -232,7 +232,7 @@ static void handle_connecting(int epoll_fd, struct epoll_event event, DB *db) {
     state->response_len = 0;
     state->state = FORWARDING;
 
-    register_forwarding_fds(epoll_fd, state, data->timer_fd);
+    register_forwarding_fds(epoll_fd, state);
 }
 
 static void handle_forwarding(int epoll_fd, struct epoll_event event, DB *db) {
@@ -247,13 +247,13 @@ static void handle_closing(int epoll_fd, struct epoll_event event, DB *db) {
     EpollData *data = (EpollData *)event.data.ptr;
     ClientState *state = data->client_state;
 
-    if (data->timer_fd != -1) {
-        epoll_del_fd(epoll_fd, data->timer_fd);
-        close(data->timer_fd);
-    }
 
-    free_client_state(state, epoll_fd);
-    state->state = CLOSED;
+    // ADD TO DELETE QUEUE
+    free_client_state(&state, epoll_fd);
+    data->client_state = NULL;
+
+    free(event.data.ptr);
+    event.data.ptr = NULL;
 }
 
 typedef void (*StateHandler)(int epoll_fd, struct epoll_event event, DB *db);
@@ -274,7 +274,7 @@ void handle_client(int epoll_fd, struct epoll_event event, DB *db) {
         StateHandler handler = state_handlers[data->client_state->state];
         if (handler) {
             if (!data->client_state->request_len == 0 || !data->client_state->response_len == 0) {
-                reset_timer(data->timer_fd, TIMEOUT_SEC);
+                // RESET STATE TIMER
             }
             handler(epoll_fd, event, db);
         } else {
