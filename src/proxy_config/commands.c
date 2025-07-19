@@ -234,8 +234,9 @@ void print_command_help(const char *program_name) {
     printf("Usage: %s <command> [OPTIONS]\n\n", program_name);
     printf("Available commands:\n");
     for (int i = 0; i < NUM_COMMANDS; i++) {
-        printf("  %-10s %s\n", COMMANDS[i].name, COMMANDS[i].description);
+        printf("  %-15s %s\n", COMMANDS[i].name, COMMANDS[i].description);
     }
+    printf("  %-15s %s\n", "-v / --version", "Prints version of simpleproxy package");
     printf("\nExamples:\n");
     printf("  %s migrate\n", program_name);
     printf("  %s add -u admin\n", program_name);
