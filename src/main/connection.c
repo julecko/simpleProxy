@@ -58,6 +58,10 @@ int connection_connect(ClientState *state) {
     return 1;
 }
 
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+
 static ssize_t recv_into_buffer(int fd, char *buffer, size_t *len, size_t capacity) {
     ssize_t n = recv(fd, buffer + *len, capacity - *len, 0);
     if (n > 0) {
@@ -95,37 +99,50 @@ static int send_from_buffer(int fd, char *buffer, size_t *len) {
 int connection_forward(int epoll_fd, struct epoll_event event) {
     EpollData *data = (EpollData *)event.data.ptr;
     ClientState *state = data->client_state;
-    int fd = event.data.fd;
     uint32_t ev = event.events;
 
     bool is_client = (data->fd_type == EPOLL_FD_CLIENT);
     bool is_target = (data->fd_type == EPOLL_FD_TARGET);
-    bool modified = false;
 
-    // CLIENT → TARGET
-    if (is_client && (ev & EPOLLIN)) {
-        ssize_t r = recv_into_buffer(state->client_fd, state->request_buffer, &state->request_len, state->request_capacity);
-        if (r < 0) return -1;
-        modified = true;
+    bool write_fd = false;
+    bool read_fd = false;
+
+    if (state->request_len > 0 && (ev & EPOLLOUT)) {
+        write_fd = true;
+    } else if ((ev & EPOLLIN)){
+        read_fd = true;
     }
 
-    if (is_target && (ev & EPOLLOUT) && state->request_len > 0) {
+    if (state->response_len > 0 && (ev & EPOLLOUT)) {
+        write_fd = true;
+    } else if ((ev & EPOLLIN)){
+        read_fd = true;
+    }
+
+    // CLIENT → TARGET
+    if (is_client && read_fd) {
+        ssize_t r = recv_into_buffer(state->client_fd, state->request_buffer, &state->request_len, state->request_capacity);
+        if (r < 0) state->client_closed = true;
+    }
+
+    if (is_target && write_fd) {
         ssize_t s = send_from_buffer(state->target_fd, state->request_buffer, &state->request_len);
-        if (s < 0) return -1;
-        modified = true;
+        if (s < 0) state->target_closed = true;
     }
 
     // TARGET → CLIENT
-    if (is_target && (ev & EPOLLIN)) {
+    if (is_target && read_fd) {
         ssize_t r = recv_into_buffer(state->target_fd, state->response_buffer, &state->response_len, state->response_capacity);
-        if (r < 0) return -1;
-        modified = true;
+        if (r < 0) state->target_closed = true;
     }
 
-    if (is_client && (ev & EPOLLOUT) && state->response_len > 0) {
+    if (is_client && write_fd) {
         ssize_t s = send_from_buffer(state->client_fd, state->response_buffer, &state->response_len);
-        if (s < 0) return -1;
-        modified = true;
+        if (s < 0) state->client_closed = true;
+    }
+
+    if (state->client_closed && state->target_closed) {
+        return -1;
     }
 
     return 0;

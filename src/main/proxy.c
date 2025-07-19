@@ -205,18 +205,7 @@ static void handle_initialize_connection(int epoll_fd, struct epoll_event event,
         return;
     }
 
-    if (result == 1) {
-        if (state->is_https) {
-            send_https_established(state->client_fd);
-            state->request_len = 0;
-        }
-        state->response_len = 0;
-        state->state = FORWARDING;
-
-        register_forwarding_fds(epoll_fd, state, data->timer_fd);
-    } else {
-        state->state = CONNECTING;
-    }
+    state->state = CONNECTING;
 }
 
 static void handle_connecting(int epoll_fd, struct epoll_event event, DB *db) {
@@ -258,12 +247,12 @@ static void handle_closing(int epoll_fd, struct epoll_event event, DB *db) {
     EpollData *data = (EpollData *)event.data.ptr;
     ClientState *state = data->client_state;
 
-    free_client_state(state, epoll_fd);
     if (data->timer_fd != -1) {
         epoll_del_fd(epoll_fd, data->timer_fd);
         close(data->timer_fd);
     }
 
+    free_client_state(state, epoll_fd);
     state->state = CLOSED;
 }
 
@@ -280,8 +269,6 @@ static StateHandler state_handlers[] = {
 
 void handle_client(int epoll_fd, struct epoll_event event, DB *db) {
     EpollData *data = (EpollData *)event.data.ptr;
-
-    log_debug("State triggered: %d, %d, %d, %d, %d, %d", data->client_state->state, data->client_state->request_len, data->client_state->response_len, data->fd_type, event.events & EPOLLIN, event.events & EPOLLOUT);
 
     if (data->client_state->state >= 0 && data->client_state->state < sizeof(state_handlers)/sizeof(state_handlers[0])) {
         StateHandler handler = state_handlers[data->client_state->state];

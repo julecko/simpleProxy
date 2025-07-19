@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <time.h>
+#include <stdbool.h>
 
 #define MAX_BUFFER_SIZE 4096
 
@@ -19,6 +20,10 @@ typedef enum {
 typedef struct {
     int client_fd;
     int target_fd;
+
+    bool client_closed;
+    bool target_closed;
+
     size_t slot;
 
     char *request_buffer;

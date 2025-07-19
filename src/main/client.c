@@ -11,9 +11,14 @@ ClientState *create_client_state(int client_fd, size_t slot) {
     
     state->client_fd = client_fd;
     state->target_fd = -1;
+
+    state->client_closed = false;
+    state->target_closed = false;
+
     state->slot = slot;
     state->request_buffer = malloc(MAX_BUFFER_SIZE);
     state->request_capacity = MAX_BUFFER_SIZE;
+    
     state->response_buffer = malloc(MAX_BUFFER_SIZE);
     state->response_capacity = MAX_BUFFER_SIZE;
     state->state = READING_REQUEST;
