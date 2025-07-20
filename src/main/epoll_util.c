@@ -53,13 +53,13 @@ EpollData *epoll_create_data(EpollFDType type, ClientState *state) {
     return data;
 }
 
-bool epoll_register_client(int epoll_fd, int client_fd, uint32_t events) {
+ClientState *epoll_register_client(int epoll_fd, int client_fd, uint32_t events) {
     set_nonblocking(client_fd);
 
-    ClientState *state = create_client_state(client_fd, 0);
+    ClientState *state = create_client_state(client_fd);
     if (!state) {
         close(client_fd);
-        return false;
+        return NULL;
     }
 
     EpollData *client_data = epoll_create_data(EPOLL_FD_CLIENT, state);
@@ -67,15 +67,15 @@ bool epoll_register_client(int epoll_fd, int client_fd, uint32_t events) {
     if (!client_data) {
         free(client_data);
         free_client_state(&state, epoll_fd);
-        return false;
+        return NULL;
     }
 
     if (epoll_add_fd(epoll_fd, client_fd, events, client_data) == -1) {
         free(client_data);
         free_client_state(&state, epoll_fd);
-        return false;
+        return NULL;
     }
 
     log_debug("Accepted client fd=%d", client_fd);
-    return true;
+    return state;
 }

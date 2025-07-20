@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <string.h>
 
-ClientState *create_client_state(int client_fd, size_t slot) {
+ClientState *create_client_state(int client_fd) {
     ClientState *state = calloc(1, sizeof(ClientState));
     if (!state) return NULL;
     
@@ -15,7 +15,6 @@ ClientState *create_client_state(int client_fd, size_t slot) {
     state->client_closed = false;
     state->target_closed = false;
 
-    state->slot = slot;
     state->request_buffer = malloc(MAX_BUFFER_SIZE);
     state->request_capacity = MAX_BUFFER_SIZE;
     
@@ -42,7 +41,6 @@ void free_client_state(ClientState **state_ptr, int epoll_fd) {
     ClientState *state = *state_ptr;
 
     if (state->client_fd != -1) {
-        epoll_del_fd(epoll_fd, state->client_fd);
         close(state->client_fd);
         state->client_fd = -1;
     }

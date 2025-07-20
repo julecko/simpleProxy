@@ -2,6 +2,7 @@
 #include "./main/timeout.h"
 #include "./main/util.h"
 #include "./main/epoll_util.h"
+#include "./main/client_registry.h"
 #include "./client.h"
 #include "./db/db.h"
 #include "./proxy.h"
@@ -9,6 +10,8 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <string.h>
+
+#define CLIENT_TIMEOUT_SEC 25
 
 void handle_listener_event(int epoll_fd, int server_sock) {
     while (1) {
@@ -19,12 +22,56 @@ void handle_listener_event(int epoll_fd, int server_sock) {
             break;
         }
 
-        epoll_register_client(epoll_fd, client_sock, EPOLLIN);
+        ClientState *state = epoll_register_client(epoll_fd, client_sock, EPOLLIN);
+        if (!state) {
+            free_client_state(&state, epoll_fd);
+            log_warn("State creation failed");
+            return;
+        }
+
+        int slot = state_registry_add(state);
+        if (slot == -1) {
+            free_client_state(&state, epoll_fd);
+            log_warn("Slot coulnt be founf");
+            return;
+        }
+
+        state->slot = slot;
     }
 }
 
-void handle_timer_event(int epoll_fd, EpollData *data) {
-    // ADD
+void timeout_callback(ClientState *state, void *arg) {
+    int epoll_fd = *(int *)arg;
+    time_t now = time(NULL);
+
+    if (now - state->last_active > 10 && !state->expired) {
+        return;
+    }
+    log_debug("Client expired or timed out");
+
+    if (state->expired) {
+        state_registry_remove(state->slot);
+        free_client_state(&state, epoll_fd);
+    } else {
+        if (state->client_fd != -1 && state->target_fd != -1) {
+            epoll_del_fd(epoll_fd, state->client_fd);
+            epoll_del_fd(epoll_fd, state->target_fd);
+        }
+        state->expired = true;
+    }
+
+}
+
+void handle_timer_event(int epoll_fd, int timer_fd) {
+    log_debug("Timer triggered\n");
+    uint64_t expirations;
+    ssize_t s = read(timer_fd, &expirations, sizeof(expirations));
+    if (s != sizeof(expirations)) {
+        log_error("Failed to read from timerfd: %s", strerror(errno));
+        return;
+    }
+
+    state_registry_for_each(timeout_callback, &epoll_fd);
 }
 
 void handle_client_event(int epoll_fd, struct epoll_event event, DB *db) {

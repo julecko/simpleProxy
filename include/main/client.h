@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <time.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #define MAX_BUFFER_SIZE 4096
 
@@ -26,6 +27,9 @@ typedef struct {
 
     size_t slot;
 
+    time_t last_active;
+    bool expired;
+
     char *request_buffer;
     size_t request_len;
     size_t request_capacity;
@@ -41,7 +45,7 @@ typedef struct {
     int is_https;
 } ClientState;
 
-ClientState *create_client_state(int client_fd, size_t slot);
+ClientState *create_client_state(int client_fd);
 void free_client_state(ClientState **state_ptr, int epoll_fd);
 
 

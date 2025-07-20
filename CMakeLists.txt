@@ -70,6 +70,7 @@ add_executable(simpleproxy
     src/main/epoll_util.c
     src/main/loop_handlers.c
     src/main/timeout.c
+    src/main/client_registry.c
 )
 
 target_include_directories(simpleproxy PRIVATE

@@ -21,6 +21,6 @@ int epoll_add_fd(int epoll_fd, int fd, uint32_t events, EpollData *data);
 int epoll_mod_fd(int epoll_fd, int fd, uint32_t events, EpollData *data);
 int epoll_del_fd(int epoll_fd, int fd);
 EpollData *epoll_create_data(EpollFDType type, ClientState *state);
-bool epoll_register_client(int epoll_fd, int client_fd, uint32_t events);
+ClientState *epoll_register_client(int epoll_fd, int client_fd, uint32_t events);
 
 #endif

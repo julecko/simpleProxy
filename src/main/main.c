@@ -7,6 +7,7 @@
 #include "./main/util.h"
 #include "./main/epoll_util.h"
 #include "./loop_handlers.h"
+#include "./main/timeout.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -24,6 +25,7 @@
 
 int server_sock = -1;
 int epoll_fd = -1;
+int timer_fd = -1;
 
 void cleanup_resources() {
     if (server_sock != -1) {
@@ -34,6 +36,11 @@ void cleanup_resources() {
     if (epoll_fd != -1) {
         close(epoll_fd);
         epoll_fd = -1;
+    }
+
+    if (timer_fd != -1) {
+        close(timer_fd);
+        timer_fd = -1;
     }
 }
 
@@ -84,6 +91,11 @@ void run_loop(DB *db) {
         exit_with_error("epoll_add_fd failed", strerror(errno));
     }
 
+    timer_fd = register_timer(epoll_fd, 5);
+    if (timer_fd == -1){
+        exit_with_error("register_timer failed", "timerfd couldnt be created");
+    }
+
     struct epoll_event events[MAX_CONNECTIONS * 3];
 
     while (1) {
@@ -99,7 +111,7 @@ void run_loop(DB *db) {
             if (data && data->fd_type == EPOLL_FD_LISTENER && data->client_state == NULL) {
                 handle_listener_event(epoll_fd, server_sock);
             } else if (data->fd_type == EPOLL_FD_TIMER) {
-                handle_timer_event(epoll_fd, data);
+                handle_timer_event(epoll_fd, timer_fd);
             } else {
                 handle_client_event(epoll_fd, events[i], db);
             }

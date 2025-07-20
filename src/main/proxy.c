@@ -172,7 +172,7 @@ static void handle_authenticating(int epoll_fd, struct epoll_event event, DB *db
             return;
         }
 
-        log_debug("Connecting to host=%s port=%d on slot=%d", state->host, state->port, state->slot);
+        log_debug("Connecting to host=%s port=%d", state->host, state->port);
         state->state = INITIALIZE_CONNECTION;
         handle_client(epoll_fd, event, db);
     } else {
@@ -247,10 +247,18 @@ static void handle_closing(int epoll_fd, struct epoll_event event, DB *db) {
     EpollData *data = (EpollData *)event.data.ptr;
     ClientState *state = data->client_state;
 
+    state->expired = true;
 
-    // ADD TO DELETE QUEUE
-    free_client_state(&state, epoll_fd);
-    data->client_state = NULL;
+    if (state->client_fd != -1) {
+        epoll_del_fd(epoll_fd, state->client_fd);
+        close(state->client_fd);
+        state->client_fd = -1;
+    }
+    if (state->target_fd != -1) {
+        epoll_del_fd(epoll_fd, state->target_fd);
+        close(state->target_fd);
+        state->target_fd = -1;
+    }
 
     free(event.data.ptr);
     event.data.ptr = NULL;
@@ -269,12 +277,15 @@ static StateHandler state_handlers[] = {
 
 void handle_client(int epoll_fd, struct epoll_event event, DB *db) {
     EpollData *data = (EpollData *)event.data.ptr;
+    if (data->client_state->expired == true) {
+        return;
+    }
 
     if (data->client_state->state >= 0 && data->client_state->state < sizeof(state_handlers)/sizeof(state_handlers[0])) {
         StateHandler handler = state_handlers[data->client_state->state];
         if (handler) {
             if (!data->client_state->request_len == 0 || !data->client_state->response_len == 0) {
-                // RESET STATE TIMER
+                data->client_state->last_active = time(NULL);
             }
             handler(epoll_fd, event, db);
         } else {
