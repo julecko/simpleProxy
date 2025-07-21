@@ -37,7 +37,12 @@ int epoll_mod_fd(int epoll_fd, int fd, uint32_t events, EpollData *data) {
 
 int epoll_del_fd(int epoll_fd, int fd) {
     if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL) == -1) {
-        log_error("epoll_ctl DEL fd=%d failed: %s", fd, strerror(errno));
+        int err = errno;
+        switch (errno) {
+            case ENOENT:
+                return 0;
+        }
+        log_error("epoll_ctl DEL fd=%d failed: %s", fd, strerror(err));
         return -1;
     }
 

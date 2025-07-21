@@ -44,10 +44,9 @@ void timeout_callback(ClientState *state, void *arg) {
     int epoll_fd = *(int *)arg;
     time_t now = time(NULL);
 
-    if (now - state->last_active > 10 && !state->expired) {
+    if (now - state->last_active < 10 && !state->expired) {
         return;
     }
-    log_debug("Client expired or timed out");
 
     if (state->expired) {
         state_registry_remove(state->slot);
@@ -59,11 +58,9 @@ void timeout_callback(ClientState *state, void *arg) {
         }
         state->expired = true;
     }
-
 }
 
 void handle_timer_event(int epoll_fd, int timer_fd) {
-    log_debug("Timer triggered\n");
     uint64_t expirations;
     ssize_t s = read(timer_fd, &expirations, sizeof(expirations));
     if (s != sizeof(expirations)) {

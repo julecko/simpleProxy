@@ -48,5 +48,12 @@ typedef struct {
 ClientState *create_client_state(int client_fd);
 void free_client_state(ClientState **state_ptr, int epoll_fd);
 
+#ifdef DEBUG_MODE
+void print_client_state(const ClientState *state);
+#else
+static inline void print_client_state(const ClientState *state) {
+    (void)state;
+}
+#endif
 
 #endif
