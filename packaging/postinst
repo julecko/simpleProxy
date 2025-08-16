@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+# Create dedicated user/group if not exist
+if ! id -u simpleproxy >/dev/null 2>&1; then
+    echo "Creating simpleproxy system user..."
+    useradd --system --shell /usr/sbin/nologin simpleproxy
+fi
 
 echo -e "\nInstalation successful"
 echo "Run \`sudo simpleproxy-config setup\` to configure simpleproxy."

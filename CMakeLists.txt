@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(simpleProxy C)
 
-set(SIMPLEPROXY_VERSION "2.1.0")
+set(SIMPLEPROXY_VERSION "2.1.1")
 
 # Set default to Release if not specified
 if(NOT CMAKE_BUILD_TYPE)
@@ -116,13 +116,15 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 
     include(CPack)
 
-    install(TARGETS simpleproxy DESTINATION bin)
-    install(TARGETS simpleproxy-config DESTINATION bin)
-    install(TARGETS simpleproxycore
-        LIBRARY DESTINATION lib
-    )
+    # Install targets
+    install(TARGETS simpleproxy DESTINATION usr/bin)
+    install(TARGETS simpleproxy-config DESTINATION usr/bin)
+    install(TARGETS simpleproxycore LIBRARY DESTINATION usr/lib)
 
+    # Config (root-owned, editable by admins)
+    install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.conf DESTINATION etc/simpleproxy)
+
+    # Systemd unit
     install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.service DESTINATION lib/systemd/system)
-    install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.conf DESTINATION /etc/simpleproxy)
 
 endif()
