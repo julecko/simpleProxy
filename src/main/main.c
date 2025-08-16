@@ -118,6 +118,7 @@ void run_loop(DB *db) {
                 handle_client_event(epoll_fd, events[i], db);
             }
         }
+        usleep(1000);
     }
 
     cleanup_resources();
@@ -149,7 +150,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    log_info("Proxy server running on port %d...XD", config.port);
+    log_info("Proxy server running on port %d...", config.port);
     fflush(stdout);
 
     run_loop(&db);
