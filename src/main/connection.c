@@ -58,42 +58,46 @@ int connection_connect(ClientState *state) {
     return 1;
 }
 
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-
 static ssize_t recv_into_buffer(int fd, char *buffer, size_t *len, size_t capacity) {
-    ssize_t n = recv(fd, buffer + *len, capacity - *len, 0);
-    if (n > 0) {
-        *len += n;
-        return n;
-    } else if (n == 0) {
-        // Connection closed by peer
-        return -2;
-    } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        return 0; // Not an error
-    } else {
-        return -1; // Real error
+    ssize_t total = 0;
+
+    while (1) {
+        ssize_t n = recv(fd, buffer + *len, capacity - *len, 0);
+        if (n > 0) {
+            *len += n;
+            total += n;
+            continue; // try again until EAGAIN
+        } else if (n == 0) {
+            return total > 0 ? total : -2; // closed
+        } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            break; // nothing left to read
+        } else {
+            return -1; // real error
+        }
     }
+
+    return total;
 }
 
+
 static int send_from_buffer(int fd, char *buffer, size_t *len) {
-    ssize_t sent = 0;
-    while (sent < (ssize_t)(*len)) {
-        ssize_t s = send(fd, buffer + sent, *len - sent, MSG_NOSIGNAL);
-        if (s < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-            return -1;
+    ssize_t total = 0;
+
+    while (*len > 0) {
+        ssize_t s = send(fd, buffer, *len, MSG_NOSIGNAL);
+        if (s > 0) {
+            memmove(buffer, buffer + s, *len - s);
+            *len -= s;
+            total += s;
+            continue; // try again until EAGAIN
+        } else if (s < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            break; // can't send more now
+        } else {
+            return -1; // real error
         }
-        sent += s;
     }
 
-    if (sent > 0) {
-        memmove(buffer, buffer + sent, *len - sent);
-        *len -= sent;
-    }
-
-    return 0;
+    return total;
 }
 
 int connection_forward(int epoll_fd, struct epoll_event event) {

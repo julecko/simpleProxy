@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(simpleProxy C)
 
-set(SIMPLEPROXY_VERSION "2.0.0")
+set(SIMPLEPROXY_VERSION "2.1.0")
 
 # Set default to Release if not specified
 if(NOT CMAKE_BUILD_TYPE)
