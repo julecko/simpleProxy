@@ -139,7 +139,7 @@ int connection_forward(int epoll_fd, struct epoll_event event) {
         if (s < 0) state->client_closed = true;
     }
 
-    if (state->client_closed && state->target_closed) {
+    if (state->client_closed || state->target_closed) {
         return -1;
     }
 

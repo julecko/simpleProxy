@@ -118,7 +118,7 @@ void run_loop(DB *db) {
                 handle_client_event(epoll_fd, events[i], db);
             }
         }
-        usleep(1000);
+        usleep(100);
     }
 
     cleanup_resources();
