@@ -111,7 +111,10 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
         "${CMAKE_SOURCE_DIR}/packaging/conffiles"
         "${CMAKE_SOURCE_DIR}/packaging/postinst"
+        "${CMAKE_SOURCE_DIR}/packaging/prerm"
+        "${CMAKE_SOURCE_DIR}/packaging/postrm"
     )
+
 
 
     include(CPack)

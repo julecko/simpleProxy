@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+# Stop the service if it exists
+if [ -x /bin/systemctl ]; then
+    echo "Stopping simpleproxy service..."
+    systemctl stop simpleproxy.service || true
+    systemctl disable simpleproxy.service || true
+fi
+
+exit 0

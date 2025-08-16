@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+# Only run certain actions on purge
+if [ "$1" = "purge" ]; then
+    echo "Purging simpleproxy package..."
+
+    # Remove configuration files
+    rm -f /etc/simpleproxy/simpleproxy.conf
+    rm -f /etc/simpleproxy/credentials.txt
+    rmdir --ignore-fail-on-non-empty /etc/simpleproxy
+
+    # Optionally remove the user/group
+    if id simpleproxy >/dev/null 2>&1; then
+        userdel simpleproxy
+        groupdel simpleproxy
+    fi
+fi
+
+exit 0

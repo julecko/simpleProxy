@@ -1,11 +1,47 @@
 #!/bin/bash
 set -e
 
-# Create dedicated user/group if not exist
+
+# -----------------------------
+# 1. Create simpleproxy user/group
+# -----------------------------
 if ! id -u simpleproxy >/dev/null 2>&1; then
     echo "Creating simpleproxy system user..."
-    useradd --system --shell /usr/sbin/nologin simpleproxy
+    useradd --system --group --no-create-home \
+        --home /var/lib/simpleproxy --shell /usr/sbin/nologin \
+        simpleproxy
 fi
+
+
+# -----------------------------
+# 2. Create configuration directory
+# -----------------------------
+install -d -o root -g simpleproxy -m 0755 /etc/simpleproxy
+
+# Create default config if it doesn't exist
+CONFIG_FILE="/etc/simpleproxy/simpleproxy.conf"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Creating default config..."
+    cp "${DPKG_MAINTSCRIPT_DIR}/simpleproxy.conf" "$CONFIG_FILE"
+    chown root:simpleproxy "$CONFIG_FILE"
+    chmod 0640 "$CONFIG_FILE"
+fi
+
+
+# -----------------------------
+# 3. Create credentials file
+# -----------------------------
+CRED_FILE="/etc/simpleproxy/credentials.txt"
+if [ ! -f "$CRED_FILE" ]; then
+    echo "Creating empty credentials file..."
+    touch "$CRED_FILE"
+    chown root:simpleproxy "$CRED_FILE"
+    chmod 0640 "$CRED_FILE"
+fi
+
+# -----------------------------
+# 4. Display post-install instructions
+# -----------------------------
 
 echo -e "\nInstalation successful"
 echo "Run \`sudo simpleproxy-config setup\` to configure simpleproxy."
