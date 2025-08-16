@@ -116,18 +116,17 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     )
 
 
-
     include(CPack)
 
     # Install targets
-    install(TARGETS simpleproxy DESTINATION usr/bin)
-    install(TARGETS simpleproxy-config DESTINATION usr/bin)
-    install(TARGETS simpleproxycore LIBRARY DESTINATION usr/lib)
+    install(TARGETS simpleproxy DESTINATION /usr/bin)
+    install(TARGETS simpleproxy-config DESTINATION /usr/bin)
+    install(TARGETS simpleproxycore LIBRARY DESTINATION /usr/lib)
 
     # Config (root-owned, editable by admins)
-    install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.conf DESTINATION etc/simpleproxy)
+    install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.conf DESTINATION /etc/simpleproxy)
 
     # Systemd unit
-    install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.service DESTINATION lib/systemd/system)
+    install(FILES ${CMAKE_SOURCE_DIR}/packaging/simpleproxy.service DESTINATION /lib/systemd/system)
 
 endif()
