@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#define CLIENT_TIMEOUT_SEC 25
+#define CLIENT_TIMEOUT_SEC 7
 
 void handle_listener_event(int epoll_fd, int server_sock) {
     while (1) {

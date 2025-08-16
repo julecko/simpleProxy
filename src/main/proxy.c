@@ -284,9 +284,6 @@ void handle_client(int epoll_fd, struct epoll_event event, DB *db) {
     if (data->client_state->state >= 0 && data->client_state->state < sizeof(state_handlers)/sizeof(state_handlers[0])) {
         StateHandler handler = state_handlers[data->client_state->state];
         if (handler) {
-            if (!data->client_state->request_len == 0 || !data->client_state->response_len == 0) {
-                data->client_state->last_active = time(NULL);
-            }
             handler(epoll_fd, event, db);
         } else {
             log_error("No handler for state %d, closing connection", data->client_state->state);

@@ -111,35 +111,40 @@ int connection_forward(int epoll_fd, struct epoll_event event) {
     bool write_fd = false;
     bool read_fd = false;
 
-    bool client_can_read = (is_client && (ev & EPOLLIN) && !state->client_closed);
-    bool client_can_write = (is_client && (ev & EPOLLOUT) && state->response_len > 0 && !state->client_closed);
-
-    bool target_can_read = (is_target && (ev & EPOLLIN) && !state->target_closed);
-    bool target_can_write = (is_target && (ev & EPOLLOUT) && state->request_len > 0 && !state->target_closed);
-
-    // CLIENT → TARGET
-    if (is_client && client_can_read) {
-        ssize_t r = recv_into_buffer(state->client_fd, state->request_buffer, &state->request_len, state->request_capacity);
-        if (r < 0) state->client_closed = true;
+    if (((state->request_len > 0 && is_target) || (state->response_len && is_client))&& (ev & EPOLLOUT)) {
+        write_fd = true;
+    }
+    if ((ev & EPOLLIN)){
+        read_fd = true;
     }
 
-    if (is_target && target_can_write) {
+    // CLIENT → TARGET
+    if (is_client && read_fd) {
+        ssize_t r = recv_into_buffer(state->client_fd, state->request_buffer, &state->request_len, state->request_capacity);
+        if (r < 0) state->client_closed = true;
+        if (r > 0) data->client_state->last_active = time(NULL);
+    }
+
+    if (is_target && write_fd) {
         ssize_t s = send_from_buffer(state->target_fd, state->request_buffer, &state->request_len);
         if (s < 0) state->target_closed = true;
+        if (s > 0) data->client_state->last_active = time(NULL);
     }
 
     // TARGET → CLIENT
-    if (is_target && target_can_read) {
+    if (is_target && read_fd) {
         ssize_t r = recv_into_buffer(state->target_fd, state->response_buffer, &state->response_len, state->response_capacity);
         if (r < 0) state->target_closed = true;
+        if (r > 0) data->client_state->last_active = time(NULL);
     }
 
-    if (is_client && client_can_write) {
+    if (is_client && write_fd) {
         ssize_t s = send_from_buffer(state->client_fd, state->response_buffer, &state->response_len);
         if (s < 0) state->client_closed = true;
+        if (s > 0) data->client_state->last_active = time(NULL);
     }
 
-    if (state->client_closed || state->target_closed) {
+    if (state->client_closed && state->target_closed) {
         return -1;
     }
 

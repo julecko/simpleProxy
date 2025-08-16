@@ -108,7 +108,7 @@ void run_loop(DB *db) {
         for (int i = 0; i < n_ready; ++i) {
             EpollData *data = events[i].data.ptr;
 
-            print_client_state(data->client_state);
+            //print_client_state(data->client_state);
 
             if (data && data->fd_type == EPOLL_FD_LISTENER && data->client_state == NULL) {
                 handle_listener_event(epoll_fd, server_sock);
